@@ -210,7 +210,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						if !ok {
 							// 数据接受完成
 							if len(rs) > 0 {
-								go sendToUser(req.AgentID, req.UserID, string(rs)+"\n--------------------------------\n"+req.MSG, l.svcCtx.Config)
+								go sendToUser(req.AgentID, req.UserID, string(rs), l.svcCtx.Config)
 							}
 							return
 						}
@@ -604,7 +604,7 @@ func (p CommendVoice) exec(l *ChatLogic, req *types.ChatReq) bool {
 		return false
 	}
 	// 语音识别成功
-	sendToUser(req.AgentID, req.UserID, "语音识别成功:\n\n"+txt, l.svcCtx.Config)
+	//sendToUser(req.AgentID, req.UserID, "语音识别成功:\n\n"+txt, l.svcCtx.Config)
 
 	l.message = txt
 	return true
