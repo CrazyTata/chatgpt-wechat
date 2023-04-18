@@ -196,7 +196,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				if !ok {
 					// 数据接受完成
 					if len(rs) > 0 {
-						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, string(rs)+"\n--------------------------------\n"+req.Msg)
+						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, string(rs))
 					}
 					return
 				}
@@ -310,7 +310,7 @@ func (p CustomerCommendVoice) customerExec(l *CustomerChatLogic, req *types.Cust
 		return false
 	}
 	// 语音识别成功
-	wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "语音识别成功:\n\n"+txt+"\n\n系统正在思考中...")
+	//wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "语音识别成功:\n\n"+txt+"\n\n系统正在思考中...")
 
 	l.message = txt
 	return true
