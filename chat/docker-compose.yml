@@ -86,6 +86,7 @@ services:
       MINIO_ADDRESS: minio:9000
     volumes:
       - ./build/milvus:/var/lib/milvus
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
     ports:
       - "19530:19530"
       - "9091:9091"
