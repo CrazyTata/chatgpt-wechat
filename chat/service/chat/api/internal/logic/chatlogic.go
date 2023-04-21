@@ -173,6 +173,8 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						/*if qa.Score > 0.3 {
 							continue
 						}*/
+						fmt.Println("text:", qa.CnText)
+						fmt.Println("score:", qa.Score)
 						if len(embeddingData) < 1 {
 							embeddingData = append(embeddingData, EmbeddingData{
 								text: qa.CnText,

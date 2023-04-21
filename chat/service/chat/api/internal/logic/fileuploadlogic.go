@@ -172,7 +172,8 @@ func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatCl
 		return nil, err
 	}
 	embedding := res.Data[0].Embedding
-	film32 := make([]float32, milvus.ARTICLE_VECTOR_DIMENSION)
+	//film32 := make([]float32, milvus.ARTICLE_VECTOR_DIMENSION)
+	var film32 []float32
 	for _, v := range embedding {
 		film32 = append(film32, float32(v)) // 向量指支持float32，不支持float64
 	}

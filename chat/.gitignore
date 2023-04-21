@@ -24,3 +24,4 @@ go.work
 .idea
 chat-api.yaml
 build
+temp-files
