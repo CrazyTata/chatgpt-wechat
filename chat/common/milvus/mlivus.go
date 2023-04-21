@@ -2,7 +2,6 @@ package milvus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -11,64 +10,81 @@ import (
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )
 
-func Search(films []float64, addr string) []QA {
-	// setup context for client creation, use 8 seconds here
+const (
+	QA_COLLECTION            = "q_a_demo"
+	QA_VECTOR_DIMENSION      = 1024
+	ARTICLE_COLLECTION       = "articles"
+	ARTICLE_VECTOR_DIMENSION = 1024
+)
+
+type Milvus struct {
+	client client.Client
+	ctx    context.Context
+}
+
+func InitMilvus(addr, username, password string) (milvus *Milvus, err error) {
+	milvus = new(Milvus)
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-
-	c, err := client.NewGrpcClient(ctx, addr)
-	if err != nil {
-		// handling error and exit, to make example simple here
-		log.Fatal("failed to connect to milvus:", err.Error())
+	milvus.ctx = ctx
+	if username != "" {
+		milvus.client, err = client.NewDefaultGrpcClientWithAuth(ctx, addr, username, password)
+	} else {
+		milvus.client, err = client.NewGrpcClient(ctx, addr)
 	}
-	// in a main func, remember to close the client
-	defer func(c client.Client) {
-		_ = c.Close()
-	}(c)
+	return
+}
 
-	// here is the collection name we use in this example
-	collectionName := `q_a_demo`
+func (m Milvus) CloseClient() {
+	m.client.Close()
+}
+
+func (m Milvus) search(collectionName string, embeddings []float64, dimension int, fields []string, vectorField string, topK int) (sr []client.SearchResult, err error) {
 	// load collection with async=false
-	err = c.LoadCollection(ctx, collectionName, false)
+	err = m.client.LoadCollection(m.ctx, collectionName, false)
 	if err != nil {
-		log.Fatal("failed to load collection:", err.Error())
+		return
 	}
-	log.Println("load collection completed")
+	var searchEmbedding []float32
 
-	var searchFilm []float32
-	for i, film := range films {
-		if i > 1023 {
+	for i, embedding := range embeddings {
+		if i >= dimension {
 			break
 		}
-		searchFilm = append(searchFilm, float32(film))
+		searchEmbedding = append(searchEmbedding, float32(embedding))
 	}
-	vector := entity.FloatVector(searchFilm[:])
+	vector := entity.FloatVector(searchEmbedding[:])
 	// Use flat search param
-	sp, err := entity.NewIndexIvfFlatSearchParam(5)
+	sp, err := entity.NewIndexIvfFlatSearchParam(10)
 	if err != nil {
-		log.Fatal("fail to create flat search param:", err.Error())
+		return
 	}
-	sr, err := c.Search(
-		ctx, collectionName,
+	sr, err = m.client.Search(
+		m.ctx, collectionName,
 		[]string{},
 		"",
-		[]string{"ID", "Q", "A"},
+		fields,
 		[]entity.Vector{vector},
-		"Vector",
+		vectorField,
 		entity.L2,
-		4,
+		topK,
 		sp,
 	)
+	return
+}
+
+func (m Milvus) clearUp(collectionName string) {
+	_ = m.client.ReleaseCollection(m.ctx, collectionName)
+}
+
+func (m Milvus) SearchFromQA(films []float64) (qas []QA) {
+	sr, err := m.search(QA_COLLECTION, films, QA_VECTOR_DIMENSION, []string{"ID", "Q", "A"}, "Vector", 4)
 	if err != nil {
-		log.Fatal("fail to search collection:", err.Error())
+		fmt.Println(err.Error())
+		return
 	}
-
-	fmt.Println(sr)
-
-	var qas []QA
 	for _, result := range sr {
-
 		var idColumn *entity.ColumnInt64
 		var qColumn *entity.ColumnVarChar
 		var aColumn *entity.ColumnVarChar
@@ -117,67 +133,16 @@ func Search(films []float64, addr string) []QA {
 		}
 	}
 	// clean up
-	defer func(c client.Client, ctx context.Context, collName string) {
-		_ = c.ReleaseCollection(ctx, collName)
-	}(c, ctx, collectionName)
-
-	return qas
+	defer m.clearUp(QA_COLLECTION)
+	return
 }
 
-func SearchFromArticle(embeddings []float64, addr, username, password string) (articles []Articles) {
-	collectionName := "articles"
-	dimension := 128
-	// setup context for client creation, use 8 seconds here
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-
-	c, err := client.NewDefaultGrpcClientWithAuth(ctx, addr, username, password)
+func (m Milvus) SearchFromArticle(embeddings []float64) (articles []Articles) {
+	sr, err := m.search(ARTICLE_COLLECTION, embeddings, ARTICLE_VECTOR_DIMENSION, []string{"id", "cn_text"}, "vector", 1)
 	if err != nil {
-		// handling error and exit, to make example simple here
-		log.Fatal("failed to connect to milvus:", err.Error())
+		fmt.Println(err.Error())
+		return
 	}
-	// in a main func, remember to close the client
-	defer func(c client.Client) {
-		_ = c.Close()
-	}(c)
-
-	// load collection with async=false
-	err = c.LoadCollection(ctx, collectionName, false)
-	if err != nil {
-		log.Fatal("failed to load collection:", err.Error())
-	}
-	//log.Println("load collection completed")
-
-	var searchEmbedding []float32
-
-	for i, embedding := range embeddings {
-		if i >= dimension {
-			break
-		}
-		searchEmbedding = append(searchEmbedding, float32(embedding))
-	}
-	vector := entity.FloatVector(searchEmbedding[:])
-	// Use flat search param
-	sp, err := entity.NewIndexIvfFlatSearchParam(10)
-	if err != nil {
-		log.Fatal("fail to create flat search param:", err.Error())
-	}
-	sr, err := c.Search(
-		ctx, collectionName,
-		[]string{},
-		"",
-		[]string{"id", "cn_text"},
-		[]entity.Vector{vector},
-		"vector",
-		entity.L2,
-		3,
-		sp,
-	)
-	if err != nil {
-		log.Fatal("fail to search collection:", err.Error())
-	}
-
 	//fmt.Println(sr)
 	for _, result := range sr {
 
@@ -198,17 +163,19 @@ func SearchFromArticle(embeddings []float64, addr, username, password string) (a
 			}
 		}
 		if idColumn == nil {
-			err = errors.New("result field not math")
-			log.Fatal("result field not math")
+			fmt.Println("result field not math")
+			return
 		}
 		for i := 0; i < result.ResultCount; i++ {
 			id, err := idColumn.ValueByIdx(i)
 			if err != nil {
-				log.Fatal(err.Error())
+				fmt.Println(err.Error())
+				break
 			}
 			text, err := textColumn.ValueByIdx(i)
 			if err != nil {
-				log.Fatal(err.Error())
+				fmt.Println(err.Error())
+				break
 			}
 			article := new(Articles)
 			article.ID = id
@@ -218,9 +185,6 @@ func SearchFromArticle(embeddings []float64, addr, username, password string) (a
 		}
 	}
 	// clean up
-	defer func(c client.Client, ctx context.Context, collName string) {
-		_ = c.ReleaseCollection(ctx, collName)
-	}(c, ctx, collectionName)
-
+	defer m.clearUp(ARTICLE_COLLECTION)
 	return
 }
