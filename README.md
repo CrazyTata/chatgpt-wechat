@@ -69,3 +69,23 @@
         <img width="40" src="./doc/support02.jpg" alt="supprt02" />
     </a>
   </p>
+## 文件上传使用文档
+### 文件注意事项
+
+1. csv或者excel类型的文件都是支持的
+2. 数据需要放在`Sheet1`中，不能使用别的sheet名称
+3. 文档就四列，顺序不能错
+
+| Name | Number | Text | chatGPT翻译 |
+| --- | --- | --- | --- |
+| Name | Number | Text | chatGPT翻译 |
+
+### 文件上传步骤
+```curl
+curl --location 'localhost:8888/api/upload/Article' \
+--form 'file=@"工作簿1.xlsx"'
+```
+1. 域名填写测试服务器ip或者域名，路由是`/api/upload/Article`
+2. key选择填写`file`
+3. key的类型也要选择`file`
+4. 在value栏上传本地文件
