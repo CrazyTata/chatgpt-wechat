@@ -170,13 +170,14 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 					var embeddingData []EmbeddingData
 					result := milvusService.SearchFromArticle(embedding)
 					for _, qa := range result {
-						if qa.Score > 0.3 {
+						/*if qa.Score > 0.3 {
 							continue
-						}
+						}*/
 						if len(embeddingData) < 1 {
 							embeddingData = append(embeddingData, EmbeddingData{
 								text: qa.CnText,
 							})
+							go sendToUser(req.AgentID, req.UserID, "系统语料:"+qa.CnText, l.svcCtx.Config)
 						}
 					}
 					if len(embeddingData) > 0 {
