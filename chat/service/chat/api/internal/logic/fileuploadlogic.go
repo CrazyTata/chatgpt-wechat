@@ -37,7 +37,7 @@ func NewFileUploadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FileUp
 func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUploadHandlerReq, r *http.Request) (resp *types.FileUploadHandlerReply, err error) {
 
 	// 1. parse input , type multipart/form-data
-	r.ParseMultipartForm(10)
+	r.ParseMultipartForm(1000)
 
 	// 2. retrieve file from posted form-data
 	file, handler, err := r.FormFile("file")
@@ -76,13 +76,9 @@ func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUplo
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("file to vector success")
 
-	for _, r := range baseData {
-		err = f.DealData(context.Background(), r)
-		if err != nil {
-			fmt.Printf("write file error %v", err)
-		}
-	}
+	err = f.DealData(baseData)
 	return
 }
 
@@ -119,14 +115,23 @@ func (f *FileUploadLogic) getData(ctx context.Context, bts [][]string) (ret []mi
 		return nil, nil
 	}
 	data := bts[1:]
+	// openai client
+	c := openai.NewChatClient(f.svcCtx.Config.OpenAi.Key).WithModel(f.model).WithBaseHost(f.baseHost)
+	if f.svcCtx.Config.Proxy.Enable {
+		c = c.WithHttpProxy(f.svcCtx.Config.Proxy.Http).WithSocks5Proxy(f.svcCtx.Config.Proxy.Socket5)
+	}
 	for _, v := range data {
-		if len(v) != 4 {
+		if len(v) < 4 {
 			continue
 		}
 		// Create a new Node with a Node number of 1
 		node, errNode := snowflake.NewNode(1)
 		if errNode != nil {
 			return nil, errNode
+		}
+		vector, vectorErr := f.DealDataToVector(ctx, c, v[3])
+		if vectorErr != nil {
+			fmt.Printf("vector error : %v", vectorErr)
 		}
 
 		// Generate a snowflake ID.
@@ -137,31 +142,15 @@ func (f *FileUploadLogic) getData(ctx context.Context, bts [][]string) (ret []mi
 			Name:   v[0] + v[1],
 			EnText: v[2],
 			CnText: v[3],
+			Vector: vector,
 		})
 	}
 
 	return
 }
 
-func (f *FileUploadLogic) DealData(ctx context.Context, message milvus.Articles) (err error) {
-	// openai client
-	c := openai.NewChatClient(f.svcCtx.Config.OpenAi.Key).WithModel(f.model).WithBaseHost(f.baseHost)
-	if f.svcCtx.Config.Proxy.Enable {
-		c = c.WithHttpProxy(f.svcCtx.Config.Proxy.Http).WithSocks5Proxy(f.svcCtx.Config.Proxy.Socket5)
-	}
+func (f *FileUploadLogic) DealData(message []milvus.Articles) (err error) {
 
-	// 把中文转换成向量
-	res, err := c.CreateOpenAIEmbeddings(message.CnText)
-	if err != nil {
-		return
-	}
-	embedding := res.Data[0].Embedding
-	film32 := make([]float32, milvus.ARTICLE_VECTOR_DIMENSION)
-	for _, v := range embedding {
-		film32 = append(film32, float32(v)) // 向量指支持float32，不支持float64
-	}
-
-	message.Vector = film32
 	fmt.Println("create open ai embeddings success")
 
 	//数据库没有
@@ -171,6 +160,21 @@ func (f *FileUploadLogic) DealData(ctx context.Context, message milvus.Articles)
 		return
 	}
 	defer milvusService.CloseClient()
-	err = milvusService.Save([]milvus.Articles{message}, milvus.ARTICLE_COLLECTION)
+	err = milvusService.Save(message, milvus.ARTICLE_COLLECTION)
 	return
+}
+
+func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatClient, message string) ([]float32, error) {
+
+	// 把中文转换成向量
+	res, err := c.CreateOpenAIEmbeddings(message)
+	if err != nil {
+		return nil, err
+	}
+	embedding := res.Data[0].Embedding
+	film32 := make([]float32, milvus.ARTICLE_VECTOR_DIMENSION)
+	for _, v := range embedding {
+		film32 = append(film32, float32(v)) // 向量指支持float32，不支持float64
+	}
+	return film32, err
 }
