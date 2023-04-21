@@ -11,19 +11,6 @@ import (
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )
 
-type QA struct {
-	ID    int64
-	Q     string
-	A     string
-	Score float32
-}
-
-type Articles struct {
-	Id    int64
-	Text  string
-	Score float32
-}
-
 func Search(films []float64, addr string) []QA {
 	// setup context for client creation, use 8 seconds here
 	ctx := context.Background()
@@ -137,7 +124,9 @@ func Search(films []float64, addr string) []QA {
 	return qas
 }
 
-func SearchFromCollection(embeddings []float64, collectionName, addr, username, password string, dimension int) (articles []Articles) {
+func SearchFromArticle(embeddings []float64, addr, username, password string) (articles []Articles) {
+	collectionName := "articles"
+	dimension := 128
 	// setup context for client creation, use 8 seconds here
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -222,8 +211,8 @@ func SearchFromCollection(embeddings []float64, collectionName, addr, username, 
 				log.Fatal(err.Error())
 			}
 			article := new(Articles)
-			article.Id = id
-			article.Text = text
+			article.ID = id
+			article.CnText = text
 			article.Score = result.Scores[i]
 			articles = append(articles, *article)
 		}
