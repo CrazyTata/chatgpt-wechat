@@ -14,7 +14,7 @@ const (
 	QA_COLLECTION            = "q_a_demo"
 	QA_VECTOR_DIMENSION      = 1024
 	ARTICLE_COLLECTION       = "articles"
-	ARTICLE_VECTOR_DIMENSION = 128
+	ARTICLE_VECTOR_DIMENSION = 1024
 )
 
 type Milvus struct {
