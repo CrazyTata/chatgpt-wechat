@@ -48,10 +48,8 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 	if req.Channel == "openai" {
 
 		embeddingMode := l.svcCtx.Config.Embeddings.Mode
-		collectionName := l.svcCtx.Config.Embeddings.Milvus.CollectionName
 		for _, application := range l.svcCtx.Config.WeCom.MultipleApplication {
 			if application.AgentID == req.AgentID {
-				collectionName = application.CollectionName
 				embeddingMode = application.EmbeddingMode
 			}
 		}
@@ -217,14 +215,14 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 							}
 						}
 					}
-					result := milvus.SearchFromCollection(embedding, collectionName, l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password, l.svcCtx.Config.Embeddings.Milvus.Dimension)
+					result := milvus.SearchFromArticle(embedding, l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password)
 					for _, qa := range result {
 						if qa.Score > 0.3 {
 							continue
 						}
 						if len(embeddingData) < 1 {
 							embeddingData = append(embeddingData, EmbeddingData{
-								text: qa.Text,
+								text: qa.CnText,
 							})
 						}
 					}

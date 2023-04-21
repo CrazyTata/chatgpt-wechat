@@ -33,7 +33,6 @@ WeCom:                                              # 企业微信配置
     BasePrompt: "你是 ChatGPT， 一个由 OpenAI 训练的大型语言模型，你旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。" # openai 基础设定（可选）
     Welcome: "您好！我是 ChatGPT，一个由 OpenAI 训练的大型语言模型，我可以回答您的问题和进行交流。请告诉我您需要了解些什么，我会尽力为您提供答案。发送#help 查看更多功能"  # 进入应用时的欢迎语
     EmbeddingMode: "QA"  # embedding的模式
-    CollectionName: "q_a_demo"  # milvus对应的collection，如果有设置
 
 OpenAi:                                             # openai配置
   Key: "xxxxxxxxxxxxxxxxxxxxx"                      # openai key
@@ -57,8 +56,6 @@ Embeddings:
     Host: "192.168.1.202:19530"
     Username: ""
     Password: ""
-    CollectionName: "q_a_demo" #默认的向量库表名
-    Dimension: 1024
     KeyWords:
     - "xx"
 
