@@ -51,7 +51,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	//上传article
 	server.AddRoutes(
 		rest.WithMiddlewares(
-			[]rest.Middleware{serverCtx.AccessLog},
+			[]rest.Middleware{},
 			[]rest.Route{
 				{
 					Method:  http.MethodPost,
