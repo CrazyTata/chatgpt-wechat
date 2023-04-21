@@ -134,7 +134,7 @@ func (f *FileUploadLogic) getData(ctx context.Context, bts [][]string) (ret []mi
 
 		ret = append(ret, milvus.Articles{
 			ID:     ID,
-			Name:   v[0],
+			Name:   v[0] + v[1],
 			EnText: v[2],
 			CnText: v[3],
 		})
