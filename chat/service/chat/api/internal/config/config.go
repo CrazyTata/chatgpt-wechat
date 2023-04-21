@@ -37,14 +37,16 @@ type Config struct {
 		Token                 string `json:",optional"`
 		EncodingAESKey        string `json:",optional"`
 		MultipleApplication   []struct {
-			AgentID     int64
-			AgentSecret string
-			Model       string `json:",optional,default=gpt-3.5-turbo"`
-			BasePrompt  string `json:",optional,default=你是ChatGPT，一个由OpenAI训练的大型语言模型，你旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。"`
-			Welcome     string `json:",optional,default=您好！我是ChatGPT，一个由OpenAI训练的大型语言模型，我可以回答您的问题和进行交流。请告诉我您需要了解些什么，我会尽力为您提供答案。\n\n发送#help查看更多功能"`
-			GroupEnable bool   `json:",optional,default=false"`
-			GroupName   string `json:",optional,default=ChatGPT应用内部交流群"`
-			GroupChatID string `json:",optional,default=ChatGPT202304021958"`
+			AgentID        int64
+			AgentSecret    string
+			Model          string `json:",optional,default=gpt-3.5-turbo"`
+			BasePrompt     string `json:",optional,default=你是ChatGPT，一个由OpenAI训练的大型语言模型，你旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。"`
+			Welcome        string `json:",optional,default=您好！我是ChatGPT，一个由OpenAI训练的大型语言模型，我可以回答您的问题和进行交流。请告诉我您需要了解些什么，我会尽力为您提供答案。\n\n发送#help查看更多功能"`
+			GroupEnable    bool   `json:",optional,default=false"`
+			GroupName      string `json:",optional,default=ChatGPT应用内部交流群"`
+			GroupChatID    string `json:",optional,default=ChatGPT202304021958"`
+			EmbeddingMode  string `json:",optional,default=QA"`
+			CollectionName string `json:",optional,default=q_a_demo"`
 		} `json:",optional"`
 	}
 
@@ -72,10 +74,15 @@ type Config struct {
 
 	// embeddings 配置
 	Embeddings struct {
-		Enable bool `json:",optional,default=false"`
-		Mlvus  struct {
-			Host     string   `json:",optional,default=127.0.0.1:19530"`
-			Keywords []string `json:",optional"`
+		Enable bool   `json:",optional,default=false"`
+		Mode   string `json:",optional,default=QA"`
+		Milvus struct {
+			Host           string   `json:",optional,default=127.0.0.1:19530"`
+			Username       string   `json:",optional"`
+			Password       string   `json:",optional"`
+			CollectionName string   `json:",optional,default=q_a_demo"`
+			Dimension      int      `json:",optional,default=1024"`
+			Keywords       []string `json:",optional"`
 		} `json:",optional"`
 	}
 

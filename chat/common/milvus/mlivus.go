@@ -2,6 +2,7 @@ package milvus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -14,6 +15,12 @@ type QA struct {
 	ID    int64
 	Q     string
 	A     string
+	Score float32
+}
+
+type Articles struct {
+	Id    int64
+	Text  string
 	Score float32
 }
 
@@ -128,4 +135,103 @@ func Search(films []float64, addr string) []QA {
 	}(c, ctx, collectionName)
 
 	return qas
+}
+
+func SearchFromCollection(embeddings []float64, collectionName, addr, username, password string, dimension int) (articles []Articles) {
+	// setup context for client creation, use 8 seconds here
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	c, err := client.NewDefaultGrpcClientWithAuth(ctx, addr, username, password)
+	if err != nil {
+		// handling error and exit, to make example simple here
+		log.Fatal("failed to connect to milvus:", err.Error())
+	}
+	// in a main func, remember to close the client
+	defer func(c client.Client) {
+		_ = c.Close()
+	}(c)
+
+	// load collection with async=false
+	err = c.LoadCollection(ctx, collectionName, false)
+	if err != nil {
+		log.Fatal("failed to load collection:", err.Error())
+	}
+	//log.Println("load collection completed")
+
+	var searchEmbedding []float32
+
+	for i, embedding := range embeddings {
+		if i >= dimension {
+			break
+		}
+		searchEmbedding = append(searchEmbedding, float32(embedding))
+	}
+	vector := entity.FloatVector(searchEmbedding[:])
+	// Use flat search param
+	sp, err := entity.NewIndexIvfFlatSearchParam(10)
+	if err != nil {
+		log.Fatal("fail to create flat search param:", err.Error())
+	}
+	sr, err := c.Search(
+		ctx, collectionName,
+		[]string{},
+		"",
+		[]string{"id", "cn_text"},
+		[]entity.Vector{vector},
+		"vector",
+		entity.L2,
+		3,
+		sp,
+	)
+	if err != nil {
+		log.Fatal("fail to search collection:", err.Error())
+	}
+
+	//fmt.Println(sr)
+	for _, result := range sr {
+
+		var idColumn *entity.ColumnInt64
+		var textColumn *entity.ColumnVarChar
+		for _, field := range result.Fields {
+			if field.Name() == "id" {
+				c, ok := field.(*entity.ColumnInt64)
+				if ok {
+					idColumn = c
+				}
+			}
+			if field.Name() == "cn_text" {
+				q, ok := field.(*entity.ColumnVarChar)
+				if ok {
+					textColumn = q
+				}
+			}
+		}
+		if idColumn == nil {
+			err = errors.New("result field not math")
+			log.Fatal("result field not math")
+		}
+		for i := 0; i < result.ResultCount; i++ {
+			id, err := idColumn.ValueByIdx(i)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+			text, err := textColumn.ValueByIdx(i)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+			article := new(Articles)
+			article.Id = id
+			article.Text = text
+			article.Score = result.Scores[i]
+			articles = append(articles, *article)
+		}
+	}
+	// clean up
+	defer func(c client.Client, ctx context.Context, collName string) {
+		_ = c.ReleaseCollection(ctx, collName)
+	}(c, ctx, collectionName)
+
+	return
 }

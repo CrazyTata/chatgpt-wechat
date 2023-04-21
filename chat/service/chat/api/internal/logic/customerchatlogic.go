@@ -83,8 +83,8 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 		}
 		var embeddingData []EmbeddingData
 		// 为了避免 embedding 的冷启动问题，对问题进行缓存来避免冷启动, 先简单处理
-		matchEmbeddings := len(l.svcCtx.Config.Embeddings.Mlvus.Keywords) == 0
-		for _, keyword := range l.svcCtx.Config.Embeddings.Mlvus.Keywords {
+		matchEmbeddings := len(l.svcCtx.Config.Embeddings.Milvus.Keywords) == 0
+		for _, keyword := range l.svcCtx.Config.Embeddings.Milvus.Keywords {
 			if strings.Contains(req.Msg, keyword) {
 				matchEmbeddings = true
 			}
@@ -103,7 +103,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				tmp := new(EmbeddingCache)
 				_ = json.Unmarshal([]byte(embeddingRes), tmp)
 
-				result := milvus.Search(tmp.Embedding, l.svcCtx.Config.Embeddings.Mlvus.Host)
+				result := milvus.Search(tmp.Embedding, l.svcCtx.Config.Embeddings.Milvus.Host)
 				tempMessage := ""
 				for _, qa := range result {
 					if qa.Score > 0.3 {
@@ -137,7 +137,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 						redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
 					}
 					// 将 embedding 数据与 milvus 数据库 内的数据做对比响应前3个相关联的数据
-					result := milvus.Search(embedding, l.svcCtx.Config.Embeddings.Mlvus.Host)
+					result := milvus.Search(embedding, l.svcCtx.Config.Embeddings.Milvus.Host)
 
 					tempMessage := ""
 					for _, qa := range result {

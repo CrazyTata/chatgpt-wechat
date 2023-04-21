@@ -40,7 +40,7 @@ func getSessionKey(sessionKey string) string {
 func NewUserContext(userUniqueID string) *UserContext {
 	// 去 redis 中 获取 userUniqueID 对应的会话ID
 	sessionKey, _ := redis.Rdb.Get(context.Background(), userUniqueID).Result()
-	fmt.Println("sessionKey", sessionKey)
+	//fmt.Println("sessionKey", sessionKey)
 	if sessionKey == "" {
 		// 创建新的会话
 		sessionKey = uuid.New().String()
@@ -52,7 +52,7 @@ func NewUserContext(userUniqueID string) *UserContext {
 
 	// 再通过 会话ID 从 redis 中 获取 会话上下文
 	data, _ := redis.Rdb.Get(context.Background(), getSessionKey(sessionKey)).Result()
-	fmt.Println("data", data)
+	//fmt.Println("data", data)
 	if data == "" {
 		res := UserContext{
 			SessionKey:   sessionKey,

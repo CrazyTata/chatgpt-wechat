@@ -285,6 +285,6 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 			}
 		}
 
-		logx.Info("Stream response:", response)
+		//logx.Info("Stream response:", response)
 	}
 }
