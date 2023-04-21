@@ -10,11 +10,17 @@ info(
 
 type (
     FileUploadHandlerReq struct {
-        File      string `json:"file"`
     }
 
     FileUploadHandlerReply {
         Message string `json:"message"`
     }
 
+    DeleteCollectionHandlerReq struct {
+        CollectionName      string `json:"collection_name"`
+    }
+
+    DeleteCollectionHandlerReply {
+        Message string `json:"message"`
+    }
 )

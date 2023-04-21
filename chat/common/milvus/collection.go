@@ -12,6 +12,6 @@ type Articles struct {
 	Name   string
 	EnText string
 	CnText string
-	Vector []float32
+	Vector [ARTICLE_VECTOR_DIMENSION]float32
 	Score  float32
 }

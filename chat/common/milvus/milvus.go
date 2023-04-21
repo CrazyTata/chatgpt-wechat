@@ -14,7 +14,7 @@ const (
 	QA_COLLECTION            = "q_a_demo"
 	QA_VECTOR_DIMENSION      = 1024
 	ARTICLE_COLLECTION       = "articles"
-	ARTICLE_VECTOR_DIMENSION = 1024
+	ARTICLE_VECTOR_DIMENSION = 1536
 )
 
 type Milvus struct {
@@ -24,7 +24,7 @@ type Milvus struct {
 
 func InitMilvus(addr, username, password string) (milvus *Milvus, err error) {
 	milvus = new(Milvus)
-	ctx := context.Background()
+	ctx, _ := context.WithTimeout(context.Background(), 360*time.Second)
 	milvus.ctx = ctx
 	if username != "" {
 		milvus.client, err = client.NewDefaultGrpcClientWithAuth(ctx, addr, username, password)
@@ -142,9 +142,6 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 		return
 	}
 	if !has {
-		// collection with same name exist, clean up mess
-		//_ = m.client.DropCollection(m.ctx, collectionName)
-
 		schema := &entity.Schema{
 			CollectionName: collectionName,
 			Description:    "this is the ashley collection for insert and search",
@@ -186,7 +183,6 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 				},
 			},
 		}
-
 		err = m.client.CreateCollection(m.ctx, schema, 1) // only 1 shard
 		if err != nil {
 			log.Fatal("failed to create collection:", err.Error())
@@ -197,18 +193,20 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 	enText := make([]string, 0, len(films))
 	cnText := make([]string, 0, len(films))
 	vector := make([][]float32, 0, len(films))
-	for _, film := range films {
+	for idx, film := range films {
 		id = append(id, film.ID)
 		name = append(name, film.Name)
 		enText = append(enText, film.EnText)
 		cnText = append(cnText, film.CnText)
-		if len(film.Vector) != ARTICLE_VECTOR_DIMENSION {
-			vectorElem := make([]float32, ARTICLE_VECTOR_DIMENSION)
-			copy(vectorElem, film.Vector)
-			vector = append(vector, vectorElem)
-		} else {
-			vector = append(vector, film.Vector)
-		}
+		vector = append(vector, films[idx].Vector[:]) // prevent same vector
+		//
+		//if len(film.Vector) != ARTICLE_VECTOR_DIMENSION {
+		//	vectorElem := make([]float32, ARTICLE_VECTOR_DIMENSION)
+		//	copy(vectorElem, film.Vector)
+		//	vector = append(vector, vectorElem)
+		//} else {
+		//	vector = append(vector, film.Vector)
+		//}
 	}
 
 	idColumn := entity.NewColumnInt64("id", id)
@@ -283,5 +281,18 @@ func (m Milvus) SearchFromArticle(embeddings []float64) (articles []Articles) {
 	}
 	// clean up
 	defer m.clearUp(ARTICLE_COLLECTION)
+	return
+}
+
+func (m Milvus) DeleteCollection(collectionName string) (err error) {
+	has, err := m.client.HasCollection(m.ctx, collectionName)
+	if err != nil {
+		fmt.Printf("failed to check whether collection exists: %v+\n", err)
+		return
+	}
+	if has {
+		// collection with same name exist, clean up mess
+		_ = m.client.DropCollection(m.ctx, collectionName)
+	}
 	return
 }

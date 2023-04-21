@@ -42,4 +42,7 @@ service chat-api {
 	
 	@handler FileUploadHandler
 	post /file/upload (FileUploadHandlerReq) returns (FileUploadHandlerReply)
+
+	@handler DeleteCollenctionHandler
+	post /delete/collection (DeleteCollenctionHandlerReq) returns (DeleteCollenctionHandlerReply)
 }

@@ -48,3 +48,10 @@ type FileUploadHandlerReq struct {
 type FileUploadHandlerReply struct {
 	Message string `json:"message"`
 }
+type DeleteCollectionHandlerReq struct {
+	CollectionName      string `json:"collection_name"`
+}
+
+type DeleteCollectionHandlerReply struct {
+	Message string `json:"message"`
+}

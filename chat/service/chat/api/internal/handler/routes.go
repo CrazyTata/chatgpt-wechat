@@ -55,8 +55,13 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Route{
 				{
 					Method:  http.MethodPost,
-					Path:    "/upload/Article",
+					Path:    "/upload/article",
 					Handler: UploadArticle(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/delete/collection",
+					Handler: DeleteCollection(serverCtx),
 				},
 			}...,
 		),

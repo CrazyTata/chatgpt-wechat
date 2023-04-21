@@ -94,7 +94,7 @@ func (f *FileUploadLogic) checkPreview(ctx context.Context, path string) ([]milv
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("aaaaaaaaa")
 	data, err := f.getData(ctx, rows)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据失败,请检查文件内容是否正确")
@@ -129,21 +129,24 @@ func (f *FileUploadLogic) getData(ctx context.Context, bts [][]string) (ret []mi
 		if errNode != nil {
 			return nil, errNode
 		}
-		vector, vectorErr := f.DealDataToVector(ctx, c, v[3])
+		parts, vectorErr := f.DealDataToVector(ctx, c, v[3])
 		if vectorErr != nil {
 			fmt.Printf("vector error : %v", vectorErr)
 		}
+		fi := milvus.Articles{}
 
 		// Generate a snowflake ID.
-		ID := node.Generate().Int64()
+		fi.ID = node.Generate().Int64()
 
-		ret = append(ret, milvus.Articles{
-			ID:     ID,
-			Name:   v[0] + v[1],
-			EnText: v[2],
-			CnText: v[3],
-			Vector: vector,
-		})
+		fi.Name = v[0] + v[1]
+		fi.EnText = v[2]
+		fi.CnText = v[3]
+		fmt.Println(fi.Name)
+
+		for idx, vv := range parts {
+			fi.Vector[idx] = float32(vv)
+		}
+		ret = append(ret, fi)
 	}
 
 	return
@@ -164,7 +167,7 @@ func (f *FileUploadLogic) DealData(message []milvus.Articles) (err error) {
 	return
 }
 
-func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatClient, message string) ([]float32, error) {
+func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatClient, message string) ([]float64, error) {
 
 	// 把中文转换成向量
 	res, err := c.CreateOpenAIEmbeddings(message)
@@ -172,10 +175,16 @@ func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatCl
 		return nil, err
 	}
 	embedding := res.Data[0].Embedding
-	//film32 := make([]float32, milvus.ARTICLE_VECTOR_DIMENSION)
-	var film32 []float32
-	for _, v := range embedding {
-		film32 = append(film32, float32(v)) // 向量指支持float32，不支持float64
+	return embedding, err
+}
+
+func (f *FileUploadLogic) DeleteCollection(ctx context.Context, req *types.DeleteCollectionHandlerReq, r *http.Request) (resp *types.DeleteCollectionHandlerReply, err error) {
+	//数据库没有
+	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
 	}
-	return film32, err
+	err = milvusService.DeleteCollection(req.CollectionName)
+	return
 }
