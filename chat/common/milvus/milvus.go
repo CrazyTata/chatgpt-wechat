@@ -203,7 +203,13 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 		name = append(name, film.Name)
 		enText = append(enText, film.EnText)
 		cnText = append(cnText, film.CnText)
-		vector = append(vector, film.Vector)
+		if len(film.Vector) != ARTICLE_VECTOR_DIMENSION {
+			vectorElem := make([]float32, ARTICLE_VECTOR_DIMENSION)
+			copy(vectorElem, film.Vector)
+			vector = append(vector, vectorElem)
+		} else {
+			vector = append(vector, film.Vector)
+		}
 	}
 
 	idColumn := entity.NewColumnInt64("id", id)

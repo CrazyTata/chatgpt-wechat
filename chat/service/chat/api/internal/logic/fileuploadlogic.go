@@ -162,6 +162,7 @@ func (f *FileUploadLogic) DealData(ctx context.Context, message milvus.Articles)
 	}
 
 	message.Vector = film32
+	fmt.Println("create open ai embeddings success")
 
 	//数据库没有
 	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
