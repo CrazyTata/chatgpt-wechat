@@ -3,19 +3,18 @@ package milvus
 import (
 	"context"
 	"fmt"
+	"github.com/milvus-io/milvus-sdk-go/v2/client"
+	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"log"
 	"strconv"
 	"time"
-
-	"github.com/milvus-io/milvus-sdk-go/v2/client"
-	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )
 
 const (
 	QA_COLLECTION            = "q_a_demo"
 	QA_VECTOR_DIMENSION      = 1024
 	ARTICLE_COLLECTION       = "articles"
-	ARTICLE_VECTOR_DIMENSION = 1024
+	ARTICLE_VECTOR_DIMENSION = 128
 )
 
 type Milvus struct {
@@ -26,8 +25,6 @@ type Milvus struct {
 func InitMilvus(addr, username, password string) (milvus *Milvus, err error) {
 	milvus = new(Milvus)
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
 	milvus.ctx = ctx
 	if username != "" {
 		milvus.client, err = client.NewDefaultGrpcClientWithAuth(ctx, addr, username, password)
