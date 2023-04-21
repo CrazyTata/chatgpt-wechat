@@ -141,58 +141,57 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 		fmt.Printf("failed to check whether collection exists: %v+\n", err)
 		return
 	}
-	if has {
+	if !has {
 		// collection with same name exist, clean up mess
-		_ = m.client.DropCollection(m.ctx, collectionName)
-	}
+		//_ = m.client.DropCollection(m.ctx, collectionName)
 
-	schema := &entity.Schema{
-		CollectionName: collectionName,
-		Description:    "this is the ashley collection for insert and search",
-		AutoID:         false,
-		Fields: []*entity.Field{
-			{
-				Name:       "id",
-				DataType:   entity.FieldTypeInt64, // int64 only for now
-				PrimaryKey: true,
-				AutoID:     false,
-			},
-			{
-				Name:     "name",
-				DataType: entity.FieldTypeVarChar,
-				TypeParams: map[string]string{
-					entity.TypeParamMaxLength: "100",
+		schema := &entity.Schema{
+			CollectionName: collectionName,
+			Description:    "this is the ashley collection for insert and search",
+			AutoID:         false,
+			Fields: []*entity.Field{
+				{
+					Name:       "id",
+					DataType:   entity.FieldTypeInt64, // int64 only for now
+					PrimaryKey: true,
+					AutoID:     false,
+				},
+				{
+					Name:     "name",
+					DataType: entity.FieldTypeVarChar,
+					TypeParams: map[string]string{
+						entity.TypeParamMaxLength: "100",
+					},
+				},
+				{
+					Name:     "en_text",
+					DataType: entity.FieldTypeVarChar,
+					TypeParams: map[string]string{
+						entity.TypeParamMaxLength: "10000",
+					},
+				},
+				{
+					Name:     "cn_text",
+					DataType: entity.FieldTypeVarChar,
+					TypeParams: map[string]string{
+						entity.TypeParamMaxLength: "10000",
+					},
+				},
+				{
+					Name:     "vector",
+					DataType: entity.FieldTypeFloatVector,
+					TypeParams: map[string]string{
+						entity.TypeParamDim: strconv.Itoa(ARTICLE_VECTOR_DIMENSION),
+					},
 				},
 			},
-			{
-				Name:     "en_text",
-				DataType: entity.FieldTypeVarChar,
-				TypeParams: map[string]string{
-					entity.TypeParamMaxLength: "10000",
-				},
-			},
-			{
-				Name:     "cn_text",
-				DataType: entity.FieldTypeVarChar,
-				TypeParams: map[string]string{
-					entity.TypeParamMaxLength: "10000",
-				},
-			},
-			{
-				Name:     "vector",
-				DataType: entity.FieldTypeFloatVector,
-				TypeParams: map[string]string{
-					entity.TypeParamDim: strconv.Itoa(ARTICLE_VECTOR_DIMENSION),
-				},
-			},
-		},
-	}
+		}
 
-	err = m.client.CreateCollection(m.ctx, schema, 1) // only 1 shard
-	if err != nil {
-		log.Fatal("failed to create collection:", err.Error())
+		err = m.client.CreateCollection(m.ctx, schema, 1) // only 1 shard
+		if err != nil {
+			log.Fatal("failed to create collection:", err.Error())
+		}
 	}
-
 	id := make([]int64, 0, len(films))
 	name := make([]string, 0, len(films))
 	enText := make([]string, 0, len(films))
