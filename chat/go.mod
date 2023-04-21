@@ -3,11 +3,13 @@ module chat
 go 1.19
 
 require (
+	github.com/360EntSecGroup-Skylar/excelize v1.4.1
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.4
 	github.com/alibabacloud-go/ocr-api-20210707 v1.1.12
 	github.com/alibabacloud-go/tea v1.1.20
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.1
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/dlclark/regexp2 v1.9.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -56,6 +58,7 @@ require (
 	github.com/milvus-io/milvus-proto/go-api v0.0.0-20230301092744-7efc6eec15fd // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/openzipkin/zipkin-go v0.4.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect

@@ -1,0 +1,20 @@
+syntax = "v1"
+
+info(
+    title: "upload file"
+    desc: "upload file"
+    author: "tata"
+    email: ""
+    version: "v1"
+)
+
+type (
+    FileUploadHandlerReq struct {
+        File      string `json:"file"`
+    }
+
+    FileUploadHandlerReply {
+        Message string `json:"message"`
+    }
+
+)

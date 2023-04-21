@@ -41,3 +41,10 @@ type CustomerChatReq struct {
 type CustomerChatReply struct {
 	Message string `json:"message"`
 }
+
+type FileUploadHandlerReq struct {
+}
+
+type FileUploadHandlerReply struct {
+	Message string `json:"message"`
+}

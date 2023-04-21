@@ -3,6 +3,7 @@ syntax = "v1"
 import (
 	"doc/user.api"
 	"doc/chat.api"
+	"doc/uploadfile.api"
 )
 
 info(
@@ -38,4 +39,7 @@ service chat-api {
 	
 	@handler CustomerChatHandler
 	post /msg/customer/push (CustomerChatReq) returns (CustomerChatReply)
+	
+	@handler FileUploadHandler
+	post /file/upload (FileUploadHandlerReq) returns (FileUploadHandlerReply)
 }

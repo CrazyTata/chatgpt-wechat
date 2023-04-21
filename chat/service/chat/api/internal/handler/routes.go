@@ -48,4 +48,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/api"),
 	)
+	//上传article
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.AccessLog},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/upload/Article",
+					Handler: UploadArticle(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api"),
+	)
 }
