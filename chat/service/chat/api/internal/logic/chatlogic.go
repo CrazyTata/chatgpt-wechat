@@ -46,10 +46,11 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 
 	// 去找 openai 获取数据
 	if req.Channel == "openai" {
-
+		embeddingEnable := false
 		embeddingMode := l.svcCtx.Config.Embeddings.Mode
 		for _, application := range l.svcCtx.Config.WeCom.MultipleApplication {
 			if application.AgentID == req.AgentID {
+				embeddingEnable = application.EmbeddingEnable
 				embeddingMode = application.EmbeddingMode
 			}
 		}
@@ -91,131 +92,82 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 		go func() {
 			// 基于 summary 进行补充
 			messageText := ""
-			if embeddingMode == "QA" {
-				// 去通过 embeddings 进行数据匹配
-				type EmbeddingData struct {
-					Q string `json:"q"`
-					A string `json:"a"`
+			if embeddingEnable {
+				milvusService, err := milvus.InitMilvus(l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
 				}
-				var embeddingData []EmbeddingData
+				defer milvusService.CloseClient()
+				// 将用户的问题转换为embedding
 				// 为了避免 embedding 的冷启动问题，对问题进行缓存来避免冷启动, 先简单处理
-				if l.svcCtx.Config.Embeddings.Enable {
-					matchEmbeddings := len(l.svcCtx.Config.Embeddings.Milvus.Keywords) == 0
-					for _, keyword := range l.svcCtx.Config.Embeddings.Milvus.Keywords {
-						if strings.Contains(req.MSG, keyword) {
-							matchEmbeddings = true
-						}
-					}
-					if matchEmbeddings {
-						// md5 this req.MSG to key
-						key := md5.New()
-						_, _ = io.WriteString(key, req.MSG)
-						keyStr := fmt.Sprintf("%x", key.Sum(nil))
-						type EmbeddingCache struct {
-							Embedding []float64 `json:"embedding"`
-						}
-						embeddingRes, err := redis.Rdb.Get(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr)).Result()
-						if err == nil {
-							tmp := new(EmbeddingCache)
-							_ = json.Unmarshal([]byte(embeddingRes), tmp)
-
-							result := milvus.Search(tmp.Embedding, l.svcCtx.Config.Embeddings.Milvus.Host)
-							tempMessage := ""
-							for _, qa := range result {
-								if qa.Score > 0.3 {
-									continue
-								}
-								if len(embeddingData) < 2 {
-									embeddingData = append(embeddingData, EmbeddingData{
-										Q: qa.Q,
-										A: qa.A,
-									})
-								} else {
-									tempMessage += qa.Q + "\n"
-								}
-							}
-							if tempMessage != "" {
-								go sendToUser(req.AgentID, req.UserID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
-							}
-						} else {
-							sendToUser(req.AgentID, req.UserID, "正在为您查询相关数据", l.svcCtx.Config)
-							res, err := c.CreateOpenAIEmbeddings(req.MSG)
-							if err == nil {
-								fmt.Println(res.Data)
-								fmt.Println(l.svcCtx.Config.Embeddings)
-								embedding := res.Data[0].Embedding
-								// 去将其存入 redis
-								embeddingCache := EmbeddingCache{
-									Embedding: embedding,
-								}
-								redisData, err := json.Marshal(embeddingCache)
-								if err == nil {
-									redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
-								}
-								// 将 embedding 数据与 milvus 数据库 内的数据做对比响应前3个相关联的数据
-								result := milvus.Search(embedding, l.svcCtx.Config.Embeddings.Milvus.Host)
-
-								tempMessage := ""
-								for _, qa := range result {
-									if qa.Score > 0.3 {
-										continue
-									}
-									if len(embeddingData) < 2 {
-										embeddingData = append(embeddingData, EmbeddingData{
-											Q: qa.Q,
-											A: qa.A,
-										})
-									} else {
-										tempMessage += qa.Q + "\n"
-									}
-								}
-								if tempMessage != "" {
-									go sendToUser(req.AgentID, req.UserID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
-								}
-							}
-						}
-					}
+				key := md5.New()
+				_, _ = io.WriteString(key, req.MSG)
+				keyStr := fmt.Sprintf("%x", key.Sum(nil))
+				type EmbeddingCache struct {
+					Embedding []float64 `json:"embedding"`
 				}
-				for _, chat := range embeddingData {
-					collection.Set(chat.Q, chat.A, false)
-				}
-				collection.Set(req.MSG, "", false)
-			} else if embeddingMode == "ARTICLE" {
-				// 去通过 embeddings 进行数据匹配
-				type EmbeddingData struct {
-					text string `json:"text"`
-				}
-				var embeddingData []EmbeddingData
-				// 为了避免 embedding 的冷启动问题，对问题进行缓存来避免冷启动, 先简单处理
-				if l.svcCtx.Config.Embeddings.Enable {
-					// md5 this req.MSG to key
-					key := md5.New()
-					_, _ = io.WriteString(key, req.MSG)
-					keyStr := fmt.Sprintf("%x", key.Sum(nil))
-					type EmbeddingCache struct {
-						Embedding []float64 `json:"embedding"`
-					}
-					embeddingRes, err := redis.Rdb.Get(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr)).Result()
-					var embedding []float64
+				embeddingRes, err := redis.Rdb.Get(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr)).Result()
+				var embedding []float64
+				if err == nil {
+					tmp := new(EmbeddingCache)
+					_ = json.Unmarshal([]byte(embeddingRes), tmp)
+					embedding = tmp.Embedding
+				} else {
+					res, err := c.CreateOpenAIEmbeddings(req.MSG)
 					if err == nil {
-						tmp := new(EmbeddingCache)
-						_ = json.Unmarshal([]byte(embeddingRes), tmp)
-						embedding = tmp.Embedding
-					} else {
-						res, err := c.CreateOpenAIEmbeddings(req.MSG)
+						embedding = res.Data[0].Embedding
+						// 去将其存入 redis
+						embeddingCache := EmbeddingCache{
+							Embedding: embedding,
+						}
+						redisData, err := json.Marshal(embeddingCache)
 						if err == nil {
-							embedding = res.Data[0].Embedding
-							// 去将其存入 redis
-							embeddingCache := EmbeddingCache{
-								Embedding: embedding,
-							}
-							redisData, err := json.Marshal(embeddingCache)
-							if err == nil {
-								redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
-							}
+							redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
 						}
 					}
-					result := milvus.SearchFromArticle(embedding, l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password)
+				}
+
+				if embeddingMode == "QA" {
+					// 去通过 embeddings 进行数据匹配
+					type EmbeddingData struct {
+						Q string `json:"q"`
+						A string `json:"a"`
+					}
+					var embeddingData []EmbeddingData
+					result := milvusService.SearchFromQA(embedding)
+					tempMessage := ""
+					for _, qa := range result {
+						if qa.Score > 0.3 {
+							continue
+						}
+						if len(embeddingData) < 2 {
+							embeddingData = append(embeddingData, EmbeddingData{
+								Q: qa.Q,
+								A: qa.A,
+							})
+						} else {
+							tempMessage += qa.Q + "\n"
+						}
+					}
+					if tempMessage != "" {
+						go sendToUser(req.AgentID, req.UserID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
+					}
+					for _, chat := range embeddingData {
+						collection.Set(chat.Q, chat.A, false)
+					}
+					collection.Set(req.MSG, "", false)
+				} else if embeddingMode == "ARTICLE" {
+					//如果是article模式，清理掉上下午，因为文章内容可能会很长
+					collection.Clear()
+					collection.Messages = []openai.ChatModelMessage{}
+					collection.Summary = []openai.ChatModelMessage{}
+					// 去通过 embeddings 进行数据匹配
+					type EmbeddingData struct {
+						text string `json:"text"`
+					}
+					var embeddingData []EmbeddingData
+					result := milvusService.SearchFromArticle(embedding)
 					for _, qa := range result {
 						if qa.Score > 0.3 {
 							continue
@@ -226,19 +178,22 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 							})
 						}
 					}
-				}
-				if len(embeddingData) > 0 {
-					messageText += "CONTEXT:"
-					for _, chat := range embeddingData {
-						messageText += chat.text + "\n\n"
+					if len(embeddingData) > 0 {
+						messageText += "When given CONTEXT you answer questions using only that information,and you always format your output in markdown.Answer with chinese.\n\n"
+						messageText += "CONTEXT:"
+						for _, chat := range embeddingData {
+							messageText += chat.text + "\n\n"
+						}
+						messageText += "USER QUESTION:" + req.MSG
+						collection.Set(messageText, "", false)
+					} else {
+						collection.Set(req.MSG, "", false)
 					}
-					messageText += "USER QUESTION:" + req.MSG
-					collection.Messages = []openai.ChatModelMessage{}
-					collection.Summary = []openai.ChatModelMessage{}
-					collection.Set(messageText, "", false)
 				} else {
 					collection.Set(req.MSG, "", false)
 				}
+			} else {
+				collection.Set(req.MSG, "", false)
 			}
 
 			if l.model == openai.TextModel {

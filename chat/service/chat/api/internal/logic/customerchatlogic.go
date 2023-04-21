@@ -91,6 +91,12 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 		}
 
 		if l.svcCtx.Config.Embeddings.Enable && matchEmbeddings {
+			milvusService, err := milvus.InitMilvus(l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			defer milvusService.CloseClient()
 			// md5 this req.MSG to key
 			key := md5.New()
 			_, _ = io.WriteString(key, req.Msg)
@@ -103,7 +109,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				tmp := new(EmbeddingCache)
 				_ = json.Unmarshal([]byte(embeddingRes), tmp)
 
-				result := milvus.Search(tmp.Embedding, l.svcCtx.Config.Embeddings.Milvus.Host)
+				result := milvusService.SearchFromQA(tmp.Embedding)
 				tempMessage := ""
 				for _, qa := range result {
 					if qa.Score > 0.3 {
@@ -137,7 +143,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 						redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
 					}
 					// 将 embedding 数据与 milvus 数据库 内的数据做对比响应前3个相关联的数据
-					result := milvus.Search(embedding, l.svcCtx.Config.Embeddings.Milvus.Host)
+					result := milvusService.SearchFromQA(embedding)
 
 					tempMessage := ""
 					for _, qa := range result {

@@ -156,7 +156,7 @@ func (f *FileUploadLogic) DealData(ctx context.Context, message milvus.Articles)
 		return
 	}
 	embedding := res.Data[0].Embedding
-	film32 := make([]float32, milvus.ARTICLE_DIMENSION)
+	film32 := make([]float32, milvus.ARTICLE_VECTOR_DIMENSION)
 	for _, v := range embedding {
 		film32 = append(film32, float32(v)) // 向量指支持float32，不支持float64
 	}
@@ -164,6 +164,12 @@ func (f *FileUploadLogic) DealData(ctx context.Context, message milvus.Articles)
 	message.Vector = film32
 
 	//数据库没有
-	err = milvus.Save(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password, []milvus.Articles{message}, milvus.ARTICLE_COLLECTION_NAME)
+	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer milvusService.CloseClient()
+	err = milvusService.Save([]milvus.Articles{message}, milvus.ARTICLE_COLLECTION)
 	return
 }
