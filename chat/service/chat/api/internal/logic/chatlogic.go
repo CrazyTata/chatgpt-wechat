@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"chat/common/wecom"
 	"context"
 	"crypto/md5"
 	"encoding/json"
@@ -361,8 +362,7 @@ func sendToUser(agentID int64, userID, msg string, config config.Config) {
 			corpSecret = application.AgentSecret
 		}
 	}
-	fmt.Println(agentID, userID, msg, corpSecret)
-	//wecom.SendToWeComUser(agentID, userID, msg, corpSecret)
+	wecom.SendToWeComUser(agentID, userID, msg, corpSecret)
 }
 
 type TemplateData interface {
