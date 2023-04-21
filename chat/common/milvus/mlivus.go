@@ -5,22 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )
 
+const COLLECTION_NAME_ARTICLES = "articles" //collection名
+const VECTOR_DIM int = 1024                 //向量的dim
+
 type QA struct {
 	ID    int64
 	Q     string
 	A     string
-	Score float32
-}
-
-type Articles struct {
-	Id    int64
-	Text  string
 	Score float32
 }
 
@@ -137,6 +135,117 @@ func Search(films []float64, addr string) []QA {
 	return qas
 }
 
+func Save(addr string, userName string, password string, films []Articles, collectionName string) (err error) {
+	// setup context for client creation, use 8 seconds here
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	//c, err := client.NewGrpcClient(ctx, addr)
+	c, err := client.NewDefaultGrpcClientWithAuth(ctx, addr, userName, password)
+	if err != nil {
+		// handling error and exit, to make example simple here
+		fmt.Printf("failed to connect to milvus: %v ", err)
+		return
+	}
+	// in a main func, remember to close the client
+	defer func(c client.Client) {
+		_ = c.Close()
+	}(c)
+
+	has, err := c.HasCollection(ctx, collectionName)
+	if err != nil {
+		fmt.Printf("failed to check whether collection exists: %v+\n", err)
+		return
+	}
+	if has {
+		// collection with same name exist, clean up mess
+		_ = c.DropCollection(ctx, collectionName)
+	}
+
+	schema := &entity.Schema{
+		CollectionName: collectionName,
+		Description:    "this is the ashley collection for insert and search",
+		AutoID:         false,
+		Fields: []*entity.Field{
+			{
+				Name:       "id",
+				DataType:   entity.FieldTypeInt64, // int64 only for now
+				PrimaryKey: true,
+				AutoID:     false,
+			},
+			{
+				Name:     "name",
+				DataType: entity.FieldTypeVarChar,
+				TypeParams: map[string]string{
+					entity.TypeParamMaxLength: "100",
+				},
+			},
+			{
+				Name:     "en_text",
+				DataType: entity.FieldTypeVarChar,
+				TypeParams: map[string]string{
+					entity.TypeParamMaxLength: "10000",
+				},
+			},
+			{
+				Name:     "cn_text",
+				DataType: entity.FieldTypeVarChar,
+				TypeParams: map[string]string{
+					entity.TypeParamMaxLength: "10000",
+				},
+			},
+			{
+				Name:     "vector",
+				DataType: entity.FieldTypeFloatVector,
+				TypeParams: map[string]string{
+					entity.TypeParamDim: strconv.Itoa(VECTOR_DIM),
+				},
+			},
+		},
+	}
+
+	err = c.CreateCollection(ctx, schema, 1) // only 1 shard
+	if err != nil {
+		log.Fatal("failed to create collection:", err.Error())
+	}
+
+	id := make([]int64, 0, len(films))
+	name := make([]string, 0, len(films))
+	enText := make([]string, 0, len(films))
+	cnText := make([]string, 0, len(films))
+	vector := make([][]float32, 0, len(films))
+	for _, film := range films {
+		id = append(id, film.ID)
+		name = append(name, film.Name)
+		enText = append(enText, film.EnText)
+		cnText = append(cnText, film.CnText)
+		vector = append(vector, film.Vector)
+	}
+
+	idColumn := entity.NewColumnInt64("id", id)
+	nameColumn := entity.NewColumnVarChar("name", name)
+	enTextColumn := entity.NewColumnVarChar("en_text", enText)
+	cnTextColumn := entity.NewColumnVarChar("cn_text", cnText)
+	vectorColumn := entity.NewColumnFloatVector("vector", VECTOR_DIM, vector)
+
+	// insert into default partition
+	ret, err := c.Insert(ctx, collectionName, "", idColumn, nameColumn, enTextColumn, cnTextColumn, vectorColumn)
+
+	if err != nil {
+		fmt.Printf("failed to insert film data: %v", err)
+		return
+	}
+	fmt.Printf("insert completed ret: %v", ret)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*120)
+	defer cancel()
+	err = c.Flush(ctx, collectionName, false)
+	if err != nil {
+		fmt.Printf("failed to flush collection: %v", err)
+	}
+	return
+}
+
 func SearchFromCollection(embeddings []float64, collectionName, addr, username, password string, dimension int) (articles []Articles) {
 	// setup context for client creation, use 8 seconds here
 	ctx := context.Background()
@@ -222,7 +331,7 @@ func SearchFromCollection(embeddings []float64, collectionName, addr, username, 
 				log.Fatal(err.Error())
 			}
 			article := new(Articles)
-			article.Id = id
+			article.ID = id
 			article.Text = text
 			article.Score = result.Scores[i]
 			articles = append(articles, *article)
