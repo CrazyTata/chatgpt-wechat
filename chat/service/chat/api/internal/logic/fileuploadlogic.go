@@ -90,14 +90,19 @@ func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUplo
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("file to vector success")
+	fmt.Println("check file success")
 	//format data
 	data, err := f.formatData(ctx, baseData)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据失败,请检查文件内容是否正确")
 	}
+	fmt.Println("format file success")
+
 	//save data
 	err = f.SaveData(data)
+
+	fmt.Println("save file success")
+
 	return
 }
 
@@ -122,20 +127,21 @@ func (f *FileUploadLogic) checkPreview(ctx context.Context, rows [][]string) ([]
 	if err != nil {
 		return nil, err
 	}
-	if len(existInfo) > 0 {
-	outerLoop:
-		for _, vv := range rows1 {
+
+outerLoop:
+	for _, vv := range rows1 {
+		if len(existInfo) > 0 {
 			for _, vvv := range existInfo {
 				if vvv == vv[0]+vv[1] {
 					continue outerLoop
 				}
 			}
-			fi := milvus.Articles{}
-			fi.Name = vv[0] + vv[1]
-			fi.EnText = vv[2]
-			fi.CnText = vv[3]
-			ret = append(ret, fi)
 		}
+		fi := milvus.Articles{}
+		fi.Name = vv[0] + vv[1]
+		fi.EnText = vv[2]
+		fi.CnText = vv[3]
+		ret = append(ret, fi)
 	}
 
 	if len(ret) == 0 {
@@ -178,8 +184,6 @@ func (f *FileUploadLogic) formatData(ctx context.Context, baseData []milvus.Arti
 }
 
 func (f *FileUploadLogic) SaveData(message []milvus.Articles) (err error) {
-
-	fmt.Println("create open ai embeddings success")
 
 	//数据库没有
 	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)

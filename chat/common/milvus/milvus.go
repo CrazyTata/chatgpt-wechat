@@ -215,7 +215,7 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 		fmt.Printf("failed to insert film data: %v", err)
 		return
 	}
-	fmt.Printf("insert completed ret: %v", ret)
+	fmt.Printf("insert completed result: %v", ret)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 	err = m.client.Flush(ctx, collectionName, false)
