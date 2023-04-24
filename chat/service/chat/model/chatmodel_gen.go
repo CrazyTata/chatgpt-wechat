@@ -51,9 +51,9 @@ type (
 	}
 )
 
-func newChatModel(conn sqlx.SqlConn, c cache.CacheConf) *defaultChatModel {
+func newChatModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultChatModel {
 	return &defaultChatModel{
-		CachedConn: sqlc.NewConn(conn, c),
+		CachedConn: sqlc.NewConn(conn, c, opts...),
 		table:      "`chat`",
 	}
 }
@@ -70,7 +70,7 @@ func (m *defaultChatModel) Delete(ctx context.Context, id int64) error {
 func (m *defaultChatModel) FindOne(ctx context.Context, id int64) (*Chat, error) {
 	chatIdKey := fmt.Sprintf("%s%v", cacheChatIdPrefix, id)
 	var resp Chat
-	err := m.QueryRowCtx(ctx, &resp, chatIdKey, func(ctx context.Context, conn sqlx.SqlConn, v interface{}) error {
+	err := m.QueryRowCtx(ctx, &resp, chatIdKey, func(ctx context.Context, conn sqlx.SqlConn, v any) error {
 		query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", chatRows, m.table)
 		return conn.QueryRowCtx(ctx, v, query, id)
 	})
@@ -102,11 +102,11 @@ func (m *defaultChatModel) Update(ctx context.Context, data *Chat) error {
 	return err
 }
 
-func (m *defaultChatModel) formatPrimary(primary interface{}) string {
+func (m *defaultChatModel) formatPrimary(primary any) string {
 	return fmt.Sprintf("%s%v", cacheChatIdPrefix, primary)
 }
 
-func (m *defaultChatModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary interface{}) error {
+func (m *defaultChatModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", chatRows, m.table)
 	return conn.QueryRowCtx(ctx, v, query, primary)
 }
