@@ -2,6 +2,7 @@ package milvus
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
@@ -199,14 +200,6 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 		enText = append(enText, film.EnText)
 		cnText = append(cnText, film.CnText)
 		vector = append(vector, films[idx].Vector[:]) // prevent same vector
-		//
-		//if len(film.Vector) != ARTICLE_VECTOR_DIMENSION {
-		//	vectorElem := make([]float32, ARTICLE_VECTOR_DIMENSION)
-		//	copy(vectorElem, film.Vector)
-		//	vector = append(vector, vectorElem)
-		//} else {
-		//	vector = append(vector, film.Vector)
-		//}
 	}
 
 	idColumn := entity.NewColumnInt64("id", id)
@@ -294,5 +287,36 @@ func (m Milvus) DeleteCollection(collectionName string) (err error) {
 		// collection with same name exist, clean up mess
 		_ = m.client.DropCollection(m.ctx, collectionName)
 	}
+	return
+}
+
+func (m Milvus) QueryArticleByName(ctx context.Context, names []string) (result []string, err error) {
+	// load collection with async=false
+	err = m.client.LoadCollection(m.ctx, ARTICLE_COLLECTION, false)
+	if err != nil {
+		return
+	}
+	nameStr, _ := json.Marshal(names)
+
+	queryResult, err := m.client.Query(ctx, ARTICLE_COLLECTION, nil, "name in "+string(nameStr), []string{"name"})
+	if err != nil {
+		return
+	}
+	fmt.Printf("%#v\n", queryResult)
+	for _, v := range queryResult {
+		if v.Name() != "name" {
+			continue
+		}
+		var nameColumn *entity.ColumnVarChar
+
+		c, ok := v.(*entity.ColumnVarChar)
+		if ok {
+			nameColumn = c
+		}
+
+		result = nameColumn.Data()
+		break
+	}
+	fmt.Println(result)
 	return
 }

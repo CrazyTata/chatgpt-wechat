@@ -3,15 +3,16 @@ package logic
 import (
 	"chat/common/milvus"
 	"chat/common/openai"
+	"chat/common/util"
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
 	"context"
 	"fmt"
-	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/bwmarrin/snowflake"
 	"github.com/zeromicro/go-zero/core/logx"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -46,7 +47,7 @@ func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUplo
 		return
 	}
 	defer file.Close()
-	//Todo 可以加入文件名校验逻辑
+
 	dataBuf := make([]byte, handler.Size)
 	_, err = file.Read(dataBuf)
 	if err != nil {
@@ -72,87 +73,111 @@ func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUplo
 	}
 	fmt.Println("upload file success")
 
-	baseData, err := f.checkPreview(ctx, fileName)
+	//get data
+	var rows [][]string
+	if strings.Contains(fileName, "csv") {
+		//CSV文件
+		rows, err = util.GetCSVDataByPath(fileName)
+	} else {
+		rows, err = util.GetExcelDataByPath(fileName)
+	}
+	if err != nil {
+		return nil, err
+	}
+	//check data
+	baseData, err := f.checkPreview(ctx, rows)
+
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println("file to vector success")
-
-	err = f.DealData(baseData)
-	return
-}
-
-func (f *FileUploadLogic) checkPreview(ctx context.Context, path string) ([]milvus.Articles, error) {
-	var err error
-
-	fileHandler, err := excelize.OpenFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	rows := fileHandler.GetRows("Sheet1")
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("aaaaaaaaa")
-	data, err := f.getData(ctx, rows)
+	//format data
+	data, err := f.formatData(ctx, baseData)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据失败,请检查文件内容是否正确")
 	}
+	//save data
+	err = f.SaveData(data)
+	return
+}
 
-	if len(data) == 0 {
+func (f *FileUploadLogic) checkPreview(ctx context.Context, rows [][]string) ([]milvus.Articles, error) {
+
+	if len(rows) <= 1 {
+		return nil, fmt.Errorf("文件内容为空")
+	}
+	if len(rows) > MAX_UPLOAD_SIZE {
+		return nil, fmt.Errorf("超过最大上传数量:%d", MAX_UPLOAD_SIZE)
+	}
+	rows1 := rows[1:]
+	var ret []milvus.Articles
+	var names []string
+	for _, v := range rows1 {
+		names = append(names, v[0]+v[1])
+	}
+
+	fmt.Println(names)
+
+	existInfo, err := f.QueryArticleByName(ctx, names)
+	if err != nil {
+		return nil, err
+	}
+	if len(existInfo) > 0 {
+	outerLoop:
+		for _, vv := range rows1 {
+			for _, vvv := range existInfo {
+				if vvv == vv[0]+vv[1] {
+					continue outerLoop
+				}
+			}
+			fi := milvus.Articles{}
+			fi.Name = vv[0] + vv[1]
+			fi.EnText = vv[2]
+			fi.CnText = vv[3]
+			ret = append(ret, fi)
+		}
+	}
+
+	if len(ret) == 0 {
 		return nil, fmt.Errorf("文件内容为空")
 	}
 
-	if len(data) > MAX_UPLOAD_SIZE {
-		return nil, fmt.Errorf("超过最大上传数量:%d", MAX_UPLOAD_SIZE)
-	}
-	return data, nil
+	return ret, nil
 }
 
-func (f *FileUploadLogic) getData(ctx context.Context, bts [][]string) (ret []milvus.Articles, err error) {
-	if len(bts) <= 1 {
-		return nil, nil
-	}
-	data := bts[1:]
-	// openai client
+func (f *FileUploadLogic) formatData(ctx context.Context, baseData []milvus.Articles) (ret []milvus.Articles, err error) {
+
 	c := openai.NewChatClient(f.svcCtx.Config.OpenAi.Key).WithModel(f.model).WithBaseHost(f.baseHost)
 	if f.svcCtx.Config.Proxy.Enable {
 		c = c.WithHttpProxy(f.svcCtx.Config.Proxy.Http).WithSocks5Proxy(f.svcCtx.Config.Proxy.Socket5)
 	}
-	for _, v := range data {
-		if len(v) < 4 {
-			continue
-		}
+	for _, v := range baseData {
 		// Create a new Node with a Node number of 1
 		node, errNode := snowflake.NewNode(1)
 		if errNode != nil {
 			return nil, errNode
 		}
-		parts, vectorErr := f.DealDataToVector(ctx, c, v[3])
+		parts, vectorErr := f.DealDataToVector(ctx, c, v.Name)
 		if vectorErr != nil {
 			fmt.Printf("vector error : %v", vectorErr)
 		}
 		fi := milvus.Articles{}
-
 		// Generate a snowflake ID.
 		fi.ID = node.Generate().Int64()
-
-		fi.Name = v[0] + v[1]
-		fi.EnText = v[2]
-		fi.CnText = v[3]
-		fmt.Println(fi.Name)
-
+		fi.Name = v.Name
+		fi.EnText = v.EnText
+		fi.CnText = v.CnText
 		for idx, vv := range parts {
 			fi.Vector[idx] = float32(vv)
 		}
+		fmt.Println(fi.Name)
 		ret = append(ret, fi)
 	}
 
 	return
 }
 
-func (f *FileUploadLogic) DealData(message []milvus.Articles) (err error) {
+func (f *FileUploadLogic) SaveData(message []milvus.Articles) (err error) {
 
 	fmt.Println("create open ai embeddings success")
 
@@ -186,5 +211,19 @@ func (f *FileUploadLogic) DeleteCollection(ctx context.Context, req *types.Delet
 		return
 	}
 	err = milvusService.DeleteCollection(req.CollectionName)
+	return
+}
+
+func (f *FileUploadLogic) QueryArticleByName(ctx context.Context, names []string) (result []string, err error) {
+	//数据库没有
+	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	defer milvusService.CloseClient()
+
+	result, err = milvusService.QueryArticleByName(ctx, names)
 	return
 }
