@@ -21,6 +21,8 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+const EMBEDDING_MODEmbedding = "ARTICLE"
+
 type CustomerChatLogic struct {
 	logx.Logger
 	ctx        context.Context
@@ -379,12 +381,9 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	collection := openai.NewUserContext(
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
 	).WithPrompt(l.basePrompt).WithClient(c)
-	embeddingEnable := false
-	embeddingMode := l.svcCtx.Config.Embeddings.Mode
-	for _, application := range l.svcCtx.Config.WeCom.MultipleApplication {
-		embeddingEnable = application.EmbeddingEnable
-		embeddingMode = application.EmbeddingMode
-	}
+	embeddingEnable := true
+	embeddingMode := EMBEDDING_MODEmbedding
+
 	// 然后 把 消息 发给 openai
 	go func() {
 		// 基于 summary 进行补充
@@ -404,7 +403,6 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 				return
 			}
 			defer milvusService.CloseClient()
-
 			embeddingRes, err := redis.Rdb.Get(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr)).Result()
 			var embedding []float64
 			if err == nil {
@@ -478,6 +476,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 
 					}
 				}
+
 				if len(embeddingData) > 0 {
 					messageText += "When given CONTEXT you answer questions using only that information,and you always format your output in markdown.Answer with chinese.\n\n"
 					messageText += "CONTEXT:"
