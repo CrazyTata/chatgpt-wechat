@@ -364,14 +364,12 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	}
 
 	//get prompt
-	// 确认消息没有被处理过
 	promptPo, err := l.svcCtx.CustomerPromptModel.FindOneByQuery(context.Background(),
 		l.svcCtx.CustomerPromptModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
 	)
 	fmt.Println(promptPo.Prompt)
 
-	// 消息已处理
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
 	if promptPo != nil && promptPo.Prompt != "" {
