@@ -48,6 +48,10 @@ type Config struct {
 			EmbeddingEnable bool   `json:",optional,default=false"`
 			EmbeddingMode   string `json:",optional,default=QA"`
 		} `json:",optional"`
+		MultipleCustomer []struct {
+			EmbeddingEnable bool   `json:",optional,default=true"`
+			EmbeddingMode   string `json:",optional,default=ARTICLE"`
+		} `json:",optional"`
 	}
 
 	// openai 配置

@@ -21,7 +21,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-const EMBEDDING_MODEmbedding = "ARTICLE"
+const EMBEDDING_MODEMBEDDING = "ARTICLE"
 
 type CustomerChatLogic struct {
 	logx.Logger
@@ -382,7 +382,13 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
 	).WithPrompt(l.basePrompt).WithModel(l.model).WithClient(c)
 	embeddingEnable := true
-	embeddingMode := EMBEDDING_MODEmbedding
+	embeddingMode := EMBEDDING_MODEMBEDDING
+	for _, customerItem := range l.svcCtx.Config.WeCom.MultipleCustomer {
+		if "" != customerItem.EmbeddingMode {
+			embeddingEnable = customerItem.EmbeddingEnable
+			embeddingMode = customerItem.EmbeddingMode
+		}
+	}
 
 	// 然后 把 消息 发给 openai
 	go func() {
