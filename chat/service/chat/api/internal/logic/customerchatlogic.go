@@ -337,7 +337,7 @@ func (p CustomerCommendClear) customerExec(l *CustomerChatLogic, req *types.Cust
 
 func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *types.CustomerChatReply, err error) {
 
-	l.setModelName().setBasePrompt().setBaseHost()
+	l.setModelNameV2().setBasePrompt().setBaseHost()
 
 	// 确认消息没有被处理过
 	_, err = l.svcCtx.ChatModel.FindOneByQuery(context.Background(),
@@ -380,7 +380,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	// context
 	collection := openai.NewUserContext(
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
-	).WithPrompt(l.basePrompt).WithClient(c)
+	).WithPrompt(l.basePrompt).WithModel(l.model).WithClient(c)
 	embeddingEnable := true
 	embeddingMode := EMBEDDING_MODEmbedding
 
@@ -499,7 +499,9 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 		if l.svcCtx.Config.Response.Stream {
 			channel := make(chan string, 100)
 			go func() {
+
 				messageText, err := c.WithModel(l.model).WithBaseHost(l.baseHost).ChatStream(prompts, channel)
+
 				if err != nil {
 					logx.Error("读取 stream 失败：", err.Error())
 					wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统拥挤，稍后再试~"+err.Error())
@@ -563,4 +565,14 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	return &types.CustomerChatReply{
 		Message: "ok",
 	}, nil
+}
+
+func (l *CustomerChatLogic) setModelNameV2() (ls *CustomerChatLogic) {
+	m := l.svcCtx.Config.WeCom.Model
+	if m == "" || (m != openai.TextModel && m != openai.ChatModel && m != openai.ChatModelNew && m != openai.ChatModel4) {
+		m = openai.TextModel
+	}
+	l.svcCtx.Config.WeCom.Model = m
+	l.model = m
+	return l
 }
