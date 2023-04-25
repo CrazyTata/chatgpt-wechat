@@ -381,7 +381,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	collection := openai.NewUserContext(
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
 	).WithPrompt(l.basePrompt).WithModel(l.model).WithClient(c)
-	embeddingEnable := true
+	embeddingEnable := false
 	embeddingMode := EMBEDDING_MODEmbedding
 
 	// 然后 把 消息 发给 openai
