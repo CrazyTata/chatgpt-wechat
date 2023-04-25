@@ -24,6 +24,26 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Path:    "/user/login",
 					Handler: UserLoginHandler(serverCtx),
 				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/upload/article",
+					Handler: UploadArticleHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/delete/collection",
+					Handler: DeleteCollectionHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/prompt/set",
+					Handler: SetPromptHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/prompt/list",
+					Handler: ListPromptHandler(serverCtx),
+				},
 			}...,
 		),
 		rest.WithPrefix("/api"),
@@ -46,25 +66,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
-		rest.WithPrefix("/api"),
-	)
-	//上传article
-	server.AddRoutes(
-		rest.WithMiddlewares(
-			[]rest.Middleware{},
-			[]rest.Route{
-				{
-					Method:  http.MethodPost,
-					Path:    "/upload/article",
-					Handler: UploadArticle(serverCtx),
-				},
-				{
-					Method:  http.MethodPost,
-					Path:    "/delete/collection",
-					Handler: DeleteCollection(serverCtx),
-				},
-			}...,
-		),
 		rest.WithPrefix("/api"),
 	)
 }

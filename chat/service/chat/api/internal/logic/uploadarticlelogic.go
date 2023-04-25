@@ -4,21 +4,21 @@ import (
 	"chat/common/milvus"
 	"chat/common/openai"
 	"chat/common/util"
-	"chat/service/chat/api/internal/svc"
-	"chat/service/chat/api/internal/types"
 	"context"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
-	"github.com/zeromicro/go-zero/core/logx"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"chat/service/chat/api/internal/svc"
+	"chat/service/chat/api/internal/types"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
-const MAX_UPLOAD_SIZE = 2000
-
-type FileUploadLogic struct {
+type UploadArticleLogic struct {
 	logx.Logger
 	ctx        context.Context
 	svcCtx     *svc.ServiceContext
@@ -27,16 +27,18 @@ type FileUploadLogic struct {
 	basePrompt string
 }
 
-func NewFileUploadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FileUploadLogic {
-	return &FileUploadLogic{
+const MAX_UPLOAD_SIZE = 2000
+
+func NewUploadArticleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadArticleLogic {
+	return &UploadArticleLogic{
 		Logger: logx.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
 }
 
-func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUploadHandlerReq, r *http.Request) (resp *types.FileUploadHandlerReply, err error) {
-
+func (f *UploadArticleLogic) UploadArticle(req *types.UploadArticleHandlerReq, r *http.Request) (resp *types.UploadArticleHandlerReply, err error) {
+	ctx := context.Background()
 	// 1. parse input , type multipart/form-data
 	r.ParseMultipartForm(1000)
 
@@ -106,7 +108,7 @@ func (f *FileUploadLogic) UploadArticle(ctx context.Context, req *types.FileUplo
 	return
 }
 
-func (f *FileUploadLogic) checkPreview(ctx context.Context, rows [][]string) ([]milvus.Articles, error) {
+func (f *UploadArticleLogic) checkPreview(ctx context.Context, rows [][]string) ([]milvus.Articles, error) {
 
 	if len(rows) <= 1 {
 		return nil, fmt.Errorf("文件内容为空")
@@ -151,7 +153,7 @@ outerLoop:
 	return ret, nil
 }
 
-func (f *FileUploadLogic) formatData(ctx context.Context, baseData []milvus.Articles) (ret []milvus.Articles, err error) {
+func (f *UploadArticleLogic) formatData(ctx context.Context, baseData []milvus.Articles) (ret []milvus.Articles, err error) {
 
 	c := openai.NewChatClient(f.svcCtx.Config.OpenAi.Key).WithModel(f.model).WithBaseHost(f.baseHost)
 	if f.svcCtx.Config.Proxy.Enable {
@@ -183,7 +185,7 @@ func (f *FileUploadLogic) formatData(ctx context.Context, baseData []milvus.Arti
 	return
 }
 
-func (f *FileUploadLogic) SaveData(message []milvus.Articles) (err error) {
+func (f *UploadArticleLogic) SaveData(message []milvus.Articles) (err error) {
 
 	//数据库没有
 	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
@@ -196,7 +198,7 @@ func (f *FileUploadLogic) SaveData(message []milvus.Articles) (err error) {
 	return
 }
 
-func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatClient, message string) ([]float64, error) {
+func (f *UploadArticleLogic) DealDataToVector(ctx context.Context, c *openai.ChatClient, message string) ([]float64, error) {
 
 	// 把中文转换成向量
 	res, err := c.CreateOpenAIEmbeddings(message)
@@ -207,18 +209,7 @@ func (f *FileUploadLogic) DealDataToVector(ctx context.Context, c *openai.ChatCl
 	return embedding, err
 }
 
-func (f *FileUploadLogic) DeleteCollection(ctx context.Context, req *types.DeleteCollectionHandlerReq, r *http.Request) (resp *types.DeleteCollectionHandlerReply, err error) {
-	//数据库没有
-	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	err = milvusService.DeleteCollection(req.CollectionName)
-	return
-}
-
-func (f *FileUploadLogic) QueryArticleByName(ctx context.Context, names []string) (result []string, err error) {
+func (f *UploadArticleLogic) QueryArticleByName(ctx context.Context, names []string) (result []string, err error) {
 	//数据库没有
 	milvusService, err := milvus.InitMilvus(f.svcCtx.Config.Embeddings.Milvus.Host, f.svcCtx.Config.Embeddings.Milvus.Username, f.svcCtx.Config.Embeddings.Milvus.Password)
 	if err != nil {

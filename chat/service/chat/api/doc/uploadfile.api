@@ -9,10 +9,10 @@ info(
 )
 
 type (
-    FileUploadHandlerReq struct {
+    UploadArticleHandlerReq struct {
     }
 
-    FileUploadHandlerReply {
+    UploadArticleHandlerReply {
         Message string `json:"message"`
     }
 

@@ -1,0 +1,35 @@
+syntax = "v1"
+
+info(
+    title: "user chat 相关 api"
+    desc: "配置"
+    author: "tata"
+    email: ""
+    version: "v1"
+)
+
+type (
+
+    SetPromptReq struct {
+        KfId      string `json:"kf_id"`
+        Prompt        string `json:"prompt"`
+    }
+
+    SetPromptReply {
+        Message string `json:"message"`
+    }
+
+    ListPromptReq struct {
+
+    }
+
+    ListPromptReplyData {
+        Id      string `json:"id"`
+        KfId      string `json:"kf_id"`
+        Prompt    string `json:"prompt"`
+    }
+    ListPromptReply {
+        List []ListPromptReplyData `json:"list"`
+    }
+
+)

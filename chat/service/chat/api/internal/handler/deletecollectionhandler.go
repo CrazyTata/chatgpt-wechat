@@ -13,7 +13,7 @@ import (
 	"chat/service/chat/api/internal/types"
 )
 
-func DeleteCollection(svcCtx *svc.ServiceContext) http.HandlerFunc {
+func DeleteCollectionHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.DeleteCollectionHandlerReq
 		if err := httpx.Parse(r, &req); err != nil {
@@ -31,7 +31,7 @@ func DeleteCollection(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := logic.NewFileUploadLogic(r.Context(), svcCtx)
+		l := logic.NewDeleteCollectionLogic(r.Context(), svcCtx)
 		resp, err := l.DeleteCollection(r.Context(), &req, r)
 		response.Response(r, w, resp, err)
 	}

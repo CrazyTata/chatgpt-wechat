@@ -42,16 +42,39 @@ type CustomerChatReply struct {
 	Message string `json:"message"`
 }
 
-type FileUploadHandlerReq struct {
+type UploadArticleHandlerReq struct {
 }
 
-type FileUploadHandlerReply struct {
+type UploadArticleHandlerReply struct {
 	Message string `json:"message"`
 }
+
 type DeleteCollectionHandlerReq struct {
-	CollectionName      string `json:"collection_name"`
+	CollectionName string `json:"collection_name"`
 }
 
 type DeleteCollectionHandlerReply struct {
 	Message string `json:"message"`
+}
+
+type SetPromptReq struct {
+	KfId   string `json:"kf_id"`
+	Prompt string `json:"prompt"`
+}
+
+type SetPromptReply struct {
+	Message string `json:"message"`
+}
+
+type ListPromptReq struct {
+}
+
+type ListPromptReplyData struct {
+	Id     string `json:"id"`
+	KfId   string `json:"kf_id"`
+	Prompt string `json:"prompt"`
+}
+
+type ListPromptReply struct {
+	List []ListPromptReplyData `json:"list"`
 }
