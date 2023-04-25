@@ -104,8 +104,9 @@ func (f *UploadArticleLogic) UploadArticle(req *types.UploadArticleHandlerReq, r
 	err = f.SaveData(data)
 
 	fmt.Println("save file success")
-
-	return
+	return &types.UploadArticleHandlerReply{
+		Message: "ok",
+	}, nil
 }
 
 func (f *UploadArticleLogic) checkPreview(ctx context.Context, rows [][]string) ([]milvus.Articles, error) {

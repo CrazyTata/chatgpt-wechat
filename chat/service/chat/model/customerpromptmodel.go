@@ -16,6 +16,7 @@ type (
 		customerPromptModel
 		FindOneByQuery(ctx context.Context, rowBuilder squirrel.SelectBuilder) (*CustomerPrompt, error)
 		RowBuilder() squirrel.SelectBuilder
+		FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*CustomerPrompt, error)
 	}
 
 	customCustomerPromptModel struct {
@@ -50,4 +51,21 @@ func (m *defaultCustomerPromptModel) FindOneByQuery(ctx context.Context, rowBuil
 // export logic
 func (m *defaultCustomerPromptModel) RowBuilder() squirrel.SelectBuilder {
 	return squirrel.Select(customerPromptRows).From(m.table)
+}
+
+func (m *defaultCustomerPromptModel) FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*CustomerPrompt, error) {
+
+	query, values, err := rowBuilder.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []*CustomerPrompt
+	err = m.QueryRowsNoCacheCtx(ctx, &resp, query, values...)
+	switch err {
+	case nil:
+		return resp, nil
+	default:
+		return nil, err
+	}
 }

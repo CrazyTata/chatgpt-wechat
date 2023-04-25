@@ -70,7 +70,7 @@ type ListPromptReq struct {
 }
 
 type ListPromptReplyData struct {
-	Id     string `json:"id"`
+	Id     int64 `json:"id"`
 	KfId   string `json:"kf_id"`
 	Prompt string `json:"prompt"`
 }

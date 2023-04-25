@@ -1,11 +1,10 @@
 package logic
 
 import (
-	"context"
-
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
-
+	"context"
+	"fmt"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -24,7 +23,23 @@ func NewListPromptLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListPr
 }
 
 func (l *ListPromptLogic) ListPrompt(req *types.ListPromptReq) (resp *types.ListPromptReply, err error) {
-	// todo: add your logic here and delete this line
-
+	promptPo, err := l.svcCtx.CustomerPromptModel.FindAll(context.Background(),
+		l.svcCtx.CustomerPromptModel.RowBuilder(),
+	)
+	if err != nil {
+		fmt.Printf("ListPrompt error: %v", err)
+		return
+	}
+	var p types.ListPromptReply
+	if len(promptPo) > 0 {
+		for _, v := range promptPo {
+			p.List = append(p.List, types.ListPromptReplyData{
+				Id:     v.Id,
+				KfId:   v.KfId,
+				Prompt: v.Prompt,
+			})
+		}
+	}
+	resp = &p
 	return
 }
