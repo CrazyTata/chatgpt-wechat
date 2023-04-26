@@ -186,7 +186,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						messageText += "When given CONTEXT you answer questions using only that information,and you always format your output in markdown.Answer with chinese.\n\n"
 						messageText += "CONTEXT:"
 						for _, chat := range embeddingData {
-							messageText += chat.text + "\n\n"
+							messageText += chat.text + "\n"
 						}
 						messageText += "USER QUESTION:" + req.MSG
 						collection.Set(messageText, "", false)
