@@ -13,6 +13,8 @@ const UserSessionAgentDefaultKey = "session_agent:default:%s:%s"
 const UserSessionListKey = "user:session:list:%s"
 const SessionKey = "session:%s"
 
+const OpenAIUsedKey = "chat:open_ai:used_key"
+
 func Init(Host, Pass string) {
 	Rdb = redis.NewClient(&redis.Options{
 		Addr:     Host,

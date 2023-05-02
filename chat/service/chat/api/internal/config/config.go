@@ -7,7 +7,10 @@ import (
 
 type Config struct {
 	rest.RestConf
-
+	Redis []struct {
+		Host string
+		Pass string
+	}
 	Mysql struct {
 		DataSource string
 	}
@@ -56,7 +59,7 @@ type Config struct {
 
 	// openai 配置
 	OpenAi struct {
-		Key  string
+		Key  []string
 		Host string `json:"host,optional,default=https://api.openai.com"`
 	}
 
