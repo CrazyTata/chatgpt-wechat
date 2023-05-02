@@ -111,6 +111,7 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 	if err != nil {
 		fmt.Printf("req chat stream params: %+v ,err:%+v", config, err)
 		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+			Error:    err,
 			FuncName: "CreateTranscription",
 			Request:  req,
 		})
@@ -147,6 +148,7 @@ func (c *ChatClient) Completion(req string) (string, error) {
 	if err != nil {
 		fmt.Printf("req Completion stream params: %+v ,err:%+v", config, err)
 		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+			Error:    err,
 			FuncName: "CreateCompletion",
 			Request:  request,
 		})
@@ -194,6 +196,7 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 	if err != nil {
 		fmt.Printf("req chat params: %+v ,err:%+v", config, err)
 		chatOrigin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+			Error:    err,
 			FuncName: "CreateChatCompletion",
 			Request:  request,
 		})
@@ -297,6 +300,7 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 	if err != nil {
 		fmt.Printf("req chat stream params: %+v ,err:%+v", config, err)
 		stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+			Error:    err,
 			FuncName: "CreateChatCompletionStream",
 			Request:  request,
 		})
@@ -407,7 +411,7 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 			case "CreateCompletion":
 				result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
 
-			case "Chat":
+			case "CreateChatCompletion":
 				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
 
 			case "ChatStream":
@@ -417,7 +421,7 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
 
 			default:
-				fmt.Println("没有匹配到对应方法")
+				fmt.Println("没有匹配到对应方法" + req.FuncName)
 				return nil, req.Error
 			}
 			if resultError != nil {
@@ -428,10 +432,9 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 					return "", resultError
 				}
 			}
-			if result != nil {
-				fmt.Println("1111111111111")
-				return result, nil
-			}
+
+			fmt.Println("return the result")
+			return result, nil
 		}
 
 	} else {
