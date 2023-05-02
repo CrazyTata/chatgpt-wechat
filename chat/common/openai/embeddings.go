@@ -2,9 +2,9 @@ package openai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	copenai "github.com/sashabaranov/go-openai"
-	"strings"
 )
 
 type (
@@ -38,35 +38,20 @@ func (c *ChatClient) CreateOpenAIEmbeddings(input string) (EmbeddingResponse, er
 	res, err := cli.CreateEmbeddings(context.Background(), requestBody)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "Incorrect API key provided") {
-			//账号有问题
-			loopTimes := len(c.APIKeys)
-			for {
-				fmt.Println("aaaaa")
-
-				if loopTimes < 0 {
-					fmt.Println("循环达到最大次数")
-					return EmbeddingResponse{}, err
-				}
-				config = c.buildConfig()
-
-				cli = copenai.NewClientWithConfig(config)
-				res, err = cli.CreateEmbeddings(context.Background(), requestBody)
-				if err != nil {
-					if strings.Contains(err.Error(), "Incorrect API key provided") {
-						loopTimes--
-						continue
-					} else {
-						return EmbeddingResponse{}, err
-					}
-				} else {
-					break
-				}
-			}
-
-		} else {
-			return EmbeddingResponse{}, err
+		fmt.Printf("req CreateEmbeddings stream params: %+v ,err:%+v", config, err)
+		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+			Error:    err,
+			FuncName: "CreateEmbeddings",
+			Request:  requestBody,
+		})
+		if err1 != nil {
+			return EmbeddingResponse{}, err1
 		}
+		stream2, ok := origin.(copenai.EmbeddingResponse)
+		if !ok {
+			return EmbeddingResponse{}, errors.New("Conversion failed")
+		}
+		res = stream2
 	}
 
 	var arr []Embedding
