@@ -39,8 +39,9 @@ WeCom:                                              # 企业微信配置
     EmbeddingMode: "ARTICLE" #embedding的搜索模式
 
 OpenAi:                                             # openai配置
-  Key: "xxxxxxxxxxxxxxxxxxxxx"                      # openai key
   Host: "https://api.openai.com"                    # openai host （可选，使用cf进行反向代理时，修改可用）
+  Key:
+  - "xxxxxxxxxxxxxxxxxxxxx"                      # openai key
 
 Proxy:                                              # 代理配置 （可选）
   Enable: false                                     # 是否启用代理，默认为 false（可选）
