@@ -89,7 +89,7 @@ func (c *ChatClient) WithSocks5Proxy(proxyUrl string) *ChatClient {
 func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 	config := c.buildConfig()
 	cli := copenai.NewClientWithConfig(config)
-	fmt.Println("111111")
+
 	// 打印文件信息
 	logx.Info("File: ", voiceUrl)
 	info, err := os.Stat(voiceUrl)
@@ -108,7 +108,6 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 		Language:    "zh",
 	}
 	resp, err := cli.CreateTranscription(context.Background(), req)
-	fmt.Println("2222222")
 
 	if err != nil {
 		fmt.Printf("req SpeakToTxt params: %+v ,err:%+v", config, err)
