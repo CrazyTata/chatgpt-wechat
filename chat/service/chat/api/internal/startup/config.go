@@ -9,7 +9,7 @@ import (
 
 const ApolloAppId = "chatgpt-wechat"
 const ApolloHost = "localhost:8080"
-const ApolloNamespace = "localhost:8080"
+const ApolloNamespace = "application"
 
 func LoadConfig() (conf config.Config, err error) {
 	remote.SetAppID(ApolloAppId)
