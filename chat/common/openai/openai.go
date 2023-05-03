@@ -89,11 +89,12 @@ func (c *ChatClient) WithSocks5Proxy(proxyUrl string) *ChatClient {
 func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 	config := c.buildConfig()
 	cli := copenai.NewClientWithConfig(config)
-
+	fmt.Println("111111")
 	// 打印文件信息
 	logx.Info("File: ", voiceUrl)
 	info, err := os.Stat(voiceUrl)
 	if err != nil {
+		fmt.Println(err)
 		return "", err
 	}
 
@@ -107,9 +108,10 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 		Language:    "zh",
 	}
 	resp, err := cli.CreateTranscription(context.Background(), req)
+	fmt.Println("2222222")
 
 	if err != nil {
-		fmt.Printf("req chat stream params: %+v ,err:%+v", config, err)
+		fmt.Printf("req SpeakToTxt params: %+v ,err:%+v", config, err)
 		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
 			Error:    err,
 			FuncName: "CreateTranscription",
@@ -271,7 +273,6 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 			break
 		}
 	}
-
 	var messages []copenai.ChatCompletionMessage
 
 	if first != 0 {
@@ -299,22 +300,26 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 
 	if err != nil {
 		fmt.Printf("req chat stream params: %+v ,err:%+v", config, err)
+		return "", err
+	}
+	defer stream.Close()
+	_, err = stream.Recv()
+	if err != nil {
 		stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
 			Error:    err,
 			FuncName: "CreateChatCompletionStream",
 			Request:  request,
 		})
 		if err1 != nil {
+			fmt.Println(err1)
 			return "", err1
 		}
-		stream2, ok := stream1.(copenai.ChatCompletionStream)
+		stream2, ok := stream1.(*copenai.ChatCompletionStream)
 		if !ok {
 			return "", errors.New("Conversion failed")
 		}
-		stream = &stream2
+		stream = stream2
 	}
-	defer stream.Close()
-
 	messageText := ""
 	for {
 		response, err := stream.Recv()
@@ -414,9 +419,15 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 			case "CreateChatCompletion":
 				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
 
-			case "ChatStream":
-				result, resultError = cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-
+			case "CreateChatCompletionStream":
+				resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
+				if nil != resultStreamError {
+					return nil, resultStreamError
+				}
+				_, resultError = resultStream.Recv()
+				if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+					result = resultStream
+				}
 			case "CreateEmbeddings":
 				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
 
