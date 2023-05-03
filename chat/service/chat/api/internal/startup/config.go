@@ -8,7 +8,7 @@ import (
 )
 
 const ApolloAppId = "chatgpt-wechat"
-const ApolloHost = "localhost:8080"
+const ApolloHost = "https://180c-119-123-199-152.ngrok-free.app"
 const ApolloNamespace = "application"
 
 func LoadConfig() (conf config.Config, err error) {
