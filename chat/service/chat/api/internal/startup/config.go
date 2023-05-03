@@ -7,11 +7,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+const ApolloAppId = "chatgpt-wechat"
+const ApolloHost = "localhost:8080"
+const ApolloNamespace = "localhost:8080"
+
 func LoadConfig() (conf config.Config, err error) {
-	remote.SetAppID("tata")
+	remote.SetAppID(ApolloAppId)
 	v := viper.New()
 	v.SetConfigType("prop") // 根据namespace实际格式设置对应type
-	err = v.AddRemoteProvider("apollo", "localhost:8080", "application")
+	err = v.AddRemoteProvider("apollo", ApolloHost, ApolloNamespace)
 	if err != nil {
 		fmt.Println(err)
 		return
