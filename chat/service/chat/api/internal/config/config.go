@@ -7,10 +7,7 @@ import (
 
 type Config struct {
 	rest.RestConf
-	Redis []struct {
-		Host string
-		Pass string
-	}
+
 	Mysql struct {
 		DataSource string
 	}
@@ -95,4 +92,9 @@ type Config struct {
 	Response struct {
 		Stream bool `json:",optional,default=true"`
 	}
+}
+
+type Redis struct {
+	Host string `json:"host"`
+	Pass string `json:"pass"`
 }

@@ -2,13 +2,16 @@ package startup
 
 import (
 	"chat/service/chat/api/internal/config"
+	"encoding/json"
 	"fmt"
 	remote "github.com/shima-park/agollo/viper-remote"
 	"github.com/spf13/viper"
+	"github.com/zeromicro/go-zero/core/stores/cache"
+	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 const ApolloAppId = "chatgpt-wechat"
-const ApolloHost = "https://180c-119-123-199-152.ngrok-free.app"
+const ApolloHost = "localhost:8080"
 const ApolloNamespace = "application"
 
 func LoadConfig() (conf config.Config, err error) {
@@ -26,15 +29,31 @@ func LoadConfig() (conf config.Config, err error) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(v.AllSettings())
+	conf = dealSliceConfig(v, conf)
 	// 直接反序列化到结构体中
 	err = v.Unmarshal(&conf)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Printf("Unmarshal 的conf.Redis: %+v", conf.Redis)
-	fmt.Printf("Unmarshal 的conf.Mysql: %s", conf.Mysql.DataSource)
+	//fmt.Printf("Unmarshal 的conf.Redis: %+v", conf.Redis)
+	fmt.Printf("Unmarshal 的conf.Mysql: %s", conf.Embeddings.Milvus.Keywords[0])
 
 	return
+}
+
+func dealSliceConfig(v *viper.Viper, conf config.Config) config.Config {
+	for _, s := range v.GetStringSlice("redis") {
+		var rc []config.Redis
+		json.Unmarshal([]byte(s), &rc)
+		for _, rSon := range rc {
+			conf.RedisCache = append(conf.RedisCache, cache.NodeConf{
+				RedisConf: redis.RedisConf{
+					Host: rSon.Host,
+					Pass: rSon.Pass,
+				},
+			})
+		}
+	}
+	return conf
 }
