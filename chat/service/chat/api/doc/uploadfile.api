@@ -23,4 +23,12 @@ type (
     DeleteCollectionHandlerReply {
         Message string `json:"message"`
     }
+
+    DownloadChatHistoryReply {
+    }
+
+    DownloadChatHistoryReq struct {
+        File   string `form:"file"`
+    }
+
 )

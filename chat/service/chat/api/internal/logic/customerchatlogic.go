@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,6 +76,28 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 	collection := openai.NewUserContext(
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
 	).WithPrompt(l.basePrompt).WithClient(c)
+	var baseScore string
+	var baseTopK int
+	//get prompt
+	customerConfigPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
+		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
+	)
+	fmt.Println(customerConfigPo.Prompt)
+
+	if err != nil {
+		return nil, err
+	}
+	if customerConfigPo != nil {
+		if customerConfigPo.Prompt != "" {
+			l.basePrompt = customerConfigPo.Prompt
+		}
+		if customerConfigPo.Score.Valid {
+			baseScore = strconv.FormatFloat(customerConfigPo.Score.Float64, 'f', 2, 64)
+		}
+		if customerConfigPo.TopK != 0 {
+			baseTopK = int(customerConfigPo.TopK)
+		}
+	}
 
 	// 然后 把 消息 发给 openai
 	go func() {
@@ -111,7 +134,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				tmp := new(EmbeddingCache)
 				_ = json.Unmarshal([]byte(embeddingRes), tmp)
 
-				result := milvusService.SearchFromQA(tmp.Embedding)
+				result := milvusService.SearchFromQA(tmp.Embedding, baseScore, baseTopK)
 				tempMessage := ""
 				for _, qa := range result {
 					if qa.Score > 0.3 {
@@ -145,7 +168,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 						redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
 					}
 					// 将 embedding 数据与 milvus 数据库 内的数据做对比响应前3个相关联的数据
-					result := milvusService.SearchFromQA(embedding)
+					result := milvusService.SearchFromQA(embedding, baseScore, baseTopK)
 
 					tempMessage := ""
 					for _, qa := range result {
@@ -194,6 +217,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 					ReqContent: req.Msg,
 					ResContent: messageText,
 				})
+				go l.InsertWechatUser(req.CustomerID)
 			}()
 
 			var rs []rune
@@ -238,6 +262,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 			ReqContent: req.Msg,
 			ResContent: messageText,
 		})
+		go l.InsertWechatUser(req.CustomerID)
 	}()
 
 	return &types.CustomerChatReply{
@@ -364,29 +389,54 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	if l.svcCtx.Config.Proxy.Enable {
 		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
 	}
+	embeddingEnable := true
+	embeddingMode := EMBEDDING_MODEMBEDDING
+	var baseScore string
+	var baseTopK int
+	var clearContextTime int64
 
 	//get prompt
-	promptPo, err := l.svcCtx.CustomerPromptModel.FindOneByQuery(context.Background(),
-		l.svcCtx.CustomerPromptModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
+	customerConfigPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
+		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
 	)
-	fmt.Println(promptPo.Prompt)
+	fmt.Println(customerConfigPo.Prompt)
 
 	if err != nil {
 		return nil, err
 	}
-	if promptPo != nil && promptPo.Prompt != "" {
-		l.basePrompt = promptPo.Prompt
+	if customerConfigPo != nil {
+		if customerConfigPo.Prompt != "" {
+			l.basePrompt = customerConfigPo.Prompt
+		}
+		embeddingEnable = customerConfigPo.EmbeddingEnable
+		embeddingMode = customerConfigPo.EmbeddingMode
+		if customerConfigPo.Score.Valid {
+			baseScore = strconv.FormatFloat(customerConfigPo.Score.Float64, 'f', 2, 64)
+		}
+		if customerConfigPo.TopK != 0 {
+			baseTopK = int(customerConfigPo.TopK)
+		}
+		clearContextTime = customerConfigPo.ClearContextTime
 	}
+
 	// context
 	collection := openai.NewUserContext(
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
 	).WithPrompt(l.basePrompt).WithModel(l.model).WithClient(c)
-	embeddingEnable := true
-	embeddingMode := EMBEDDING_MODEMBEDDING
-	for _, customerItem := range l.svcCtx.Config.WeCom.MultipleCustomer {
-		if "" != customerItem.EmbeddingMode {
-			embeddingEnable = customerItem.EmbeddingEnable
-			embeddingMode = customerItem.EmbeddingMode
+
+	//判断是否需要清除聊天记录
+	if clearContextTime > 0 {
+		duration := time.Duration(clearContextTime) * time.Minute
+		formattedTime := time.Now().Add(-duration).Format("2006-01-02 15:04:05")
+		clearStatus, err1 := l.CheckClearContext(context.Background(), req.OpenKfID, req.CustomerID, formattedTime)
+		if err1 != nil {
+			fmt.Println(err1.Error())
+			return nil, err1
+		}
+		if clearStatus {
+			collection.Clear()
+			collection.Messages = []openai.ChatModelMessage{}
+			collection.Summary = []openai.ChatModelMessage{}
 		}
 	}
 
@@ -437,7 +487,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 					A string `json:"a"`
 				}
 				var embeddingData []EmbeddingData
-				result := milvusService.SearchFromQA(embedding)
+				result := milvusService.SearchFromQA(embedding, baseScore, baseTopK)
 				tempMessage := ""
 				for _, qa := range result {
 					if qa.Score > 0.3 {
@@ -469,18 +519,13 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 					text string `json:"text"`
 				}
 				var embeddingData []EmbeddingData
-				result := milvusService.SearchFromArticle(embedding)
+				result := milvusService.SearchFromArticle(embedding, baseScore, baseTopK)
 				for _, qa := range result {
-
 					fmt.Println("text:", qa.CnText)
 					fmt.Println("score:", qa.Score)
-					if len(embeddingData) < 1 {
-						embeddingData = append(embeddingData, EmbeddingData{
-							text: qa.CnText,
-						})
-						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统语料:"+qa.CnText)
-
-					}
+					embeddingData = append(embeddingData, EmbeddingData{
+						text: qa.CnText,
+					})
 				}
 
 				if len(embeddingData) > 0 {
@@ -522,6 +567,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 					ReqContent: req.Msg,
 					ResContent: messageText,
 				})
+				go l.InsertWechatUser(req.CustomerID)
 			}()
 
 			var rs []rune
@@ -566,6 +612,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 			ReqContent: req.Msg,
 			ResContent: messageText,
 		})
+		go l.InsertWechatUser(req.CustomerID)
 	}()
 
 	return &types.CustomerChatReply{
@@ -581,4 +628,53 @@ func (l *CustomerChatLogic) setModelNameV2() (ls *CustomerChatLogic) {
 	l.svcCtx.Config.WeCom.Model = m
 	l.model = m
 	return l
+}
+
+func (l *CustomerChatLogic) InsertWechatUser(user string) {
+	ctx := context.Background()
+	if user == "" {
+		return
+	}
+	//先查询下
+	promptPo, err := l.svcCtx.WechatUserModel.FindOneByQuery(ctx,
+		l.svcCtx.WechatUserModel.RowBuilder().Where(squirrel.Eq{"user": user}),
+	)
+	if err != nil {
+		fmt.Printf("InsertWechatUser FindOneByQuery error: %v", err)
+		return
+	}
+	//已存在就不需要重复去查询并且插入了
+	if promptPo != nil && promptPo.Nickname != "" {
+		return
+	}
+
+	res, err := wecom.GetCustomer([]string{user})
+	if err != nil {
+		return
+	}
+	if len(res) > 0 {
+		wechatInfo := res[0]
+		_, err = l.svcCtx.WechatUserModel.Insert(ctx, &model.WechatUser{
+			User:     user,
+			Nickname: wechatInfo.Nickname,
+			Avatar:   wechatInfo.Avatar,
+			Gender:   wechatInfo.Gender,
+			Unionid:  wechatInfo.Unionid,
+		})
+	}
+	return
+}
+
+func (l *CustomerChatLogic) CheckClearContext(ctx context.Context, openKfId, userId, formattedTime string) (bool, error) {
+
+	chatPo, err := l.svcCtx.ChatModel.FindAll(ctx,
+		l.svcCtx.ChatModel.RowBuilder().Where(squirrel.Eq{"open_kf_id": openKfId}).Where(squirrel.Eq{"user": userId}).Where(" created_at > ?", formattedTime),
+	)
+	if err != nil {
+		return false, err
+	}
+	if len(chatPo) > 0 {
+		return false, nil
+	}
+	return true, nil
 }

@@ -27,11 +27,7 @@ func main() {
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
-	//c, err := startup.LoadConfig()
-	//if nil != err {
-	//	fmt.Println(err)
-	//	panic("缺少配置信息")
-	//}
+
 	server := rest.MustNewServer(c.RestConf,
 		rest.WithUnauthorizedCallback(func(w http.ResponseWriter, r *http.Request, err error) {
 			bodyByte, _ := io.ReadAll(r.Body)

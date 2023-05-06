@@ -27,12 +27,13 @@ import (
 
 type ChatLogic struct {
 	logx.Logger
-	ctx        context.Context
-	svcCtx     *svc.ServiceContext
-	model      string
-	baseHost   string
-	basePrompt string
-	message    string
+	ctx         context.Context
+	svcCtx      *svc.ServiceContext
+	model       string
+	baseHost    string
+	basePrompt  string
+	message     string
+	agentSecret string
 }
 
 func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
@@ -44,18 +45,38 @@ func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
 }
 
 func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) {
+	embeddingEnable := false
+	embeddingMode := l.svcCtx.Config.Embeddings.Mode
+	var baseScore, prompt, baseModel, agentSecret string
+	var baseTopK int
+	var clearContextTime int64
+	//get config
+	applicationConfigPo, err := l.svcCtx.ApplicationConfigModel.FindOneByQuery(context.Background(),
+		l.svcCtx.ApplicationConfigModel.RowBuilder().Where(squirrel.Eq{"agent_id": req.AgentID}),
+	)
+	fmt.Println(applicationConfigPo)
 
+	if err != nil {
+		return nil, err
+	}
+	if applicationConfigPo != nil {
+		embeddingEnable = applicationConfigPo.EmbeddingEnable
+		embeddingMode = applicationConfigPo.EmbeddingMode
+		if applicationConfigPo.Score.Valid {
+			baseScore = strconv.FormatFloat(applicationConfigPo.Score.Float64, 'f', 2, 64)
+		}
+		if applicationConfigPo.TopK != 0 {
+			baseTopK = int(applicationConfigPo.TopK)
+		}
+		prompt = applicationConfigPo.BasePrompt
+		baseModel = applicationConfigPo.Model
+		agentSecret = applicationConfigPo.AgentSecret
+		clearContextTime = applicationConfigPo.ClearContextTime
+	}
 	// 去找 openai 获取数据
 	if req.Channel == "openai" {
-		embeddingEnable := false
-		embeddingMode := l.svcCtx.Config.Embeddings.Mode
-		for _, application := range l.svcCtx.Config.WeCom.MultipleApplication {
-			if application.AgentID == req.AgentID {
-				embeddingEnable = application.EmbeddingEnable
-				embeddingMode = application.EmbeddingMode
-			}
-		}
-		l.setModelName(req.AgentID).setBasePrompt(req.AgentID).setBaseHost()
+
+		l.setModelName(baseModel).setBasePrompt(prompt).setAgentSecret(agentSecret).setBaseHost()
 
 		// 如果用户有自定义的配置，就使用用户的配置
 		configCollection, configErr := l.svcCtx.ChatConfigModel.FindOneByQuery(
@@ -89,6 +110,22 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 		collection := openai.NewUserContext(
 			openai.GetUserUniqueID(req.UserID, strconv.FormatInt(req.AgentID, 10)),
 		).WithPrompt(l.basePrompt).WithModel(l.model).WithClient(c)
+
+		//判断是否需要清除聊天记录
+		if clearContextTime > 0 {
+			duration := time.Duration(clearContextTime) * time.Minute
+			formattedTime := time.Now().Add(-duration).Format("2006-01-02 15:04:05")
+			clearStatus, err1 := l.CheckClearContext(context.Background(), req.AgentID, req.UserID, formattedTime)
+			if err1 != nil {
+				fmt.Println(err1.Error())
+				return nil, err1
+			}
+			if clearStatus {
+				collection.Clear()
+				collection.Messages = []openai.ChatModelMessage{}
+				collection.Summary = []openai.ChatModelMessage{}
+			}
+		}
 
 		go func() {
 			// 基于 summary 进行补充
@@ -136,7 +173,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						A string `json:"a"`
 					}
 					var embeddingData []EmbeddingData
-					result := milvusService.SearchFromQA(embedding)
+					result := milvusService.SearchFromQA(embedding, baseScore, baseTopK)
 					tempMessage := ""
 					for _, qa := range result {
 						if qa.Score > 0.3 {
@@ -152,14 +189,14 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						}
 					}
 					if tempMessage != "" {
-						go sendToUser(req.AgentID, req.UserID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
+						go sendToUser(req.AgentID, agentSecret, req.UserID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
 					}
 					for _, chat := range embeddingData {
 						collection.Set(chat.Q, chat.A, false)
 					}
 					collection.Set(req.MSG, "", false)
 				} else if embeddingMode == "ARTICLE" {
-					//如果是article模式，清理掉上下午，因为文章内容可能会很长
+					//如果是article模式，清理掉上下文，因为文章内容可能会很长
 					collection.Clear()
 					collection.Messages = []openai.ChatModelMessage{}
 					collection.Summary = []openai.ChatModelMessage{}
@@ -168,19 +205,14 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						text string `json:"text"`
 					}
 					var embeddingData []EmbeddingData
-					result := milvusService.SearchFromArticle(embedding)
+					result := milvusService.SearchFromArticle(embedding, baseScore, baseTopK)
 					for _, qa := range result {
-						/*if qa.Score > 0.3 {
-							continue
-						}*/
+
 						fmt.Println("text:", qa.CnText)
 						fmt.Println("score:", qa.Score)
-						if len(embeddingData) < 1 {
-							embeddingData = append(embeddingData, EmbeddingData{
-								text: qa.CnText,
-							})
-							go sendToUser(req.AgentID, req.UserID, "系统语料:"+qa.CnText, l.svcCtx.Config)
-						}
+						embeddingData = append(embeddingData, EmbeddingData{
+							text: qa.CnText,
+						})
 					}
 					if len(embeddingData) > 0 {
 						messageText += "When given CONTEXT you answer questions using only that information,and you always format your output in markdown.Answer with chinese.\n\n"
@@ -215,7 +247,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 							if strings.Contains(errInfo, "maximum context length") {
 								errInfo += "\n 请使用 #clear 清理所有上下文"
 							}
-							sendToUser(req.AgentID, req.UserID, "系统错误:"+err.Error(), l.svcCtx.Config)
+							sendToUser(req.AgentID, agentSecret, req.UserID, "系统错误:"+err.Error(), l.svcCtx.Config)
 							return
 						}
 						collection.Set("", messageText, true)
@@ -235,18 +267,18 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						if !ok {
 							// 数据接受完成
 							if len(rs) > 0 {
-								go sendToUser(req.AgentID, req.UserID, string(rs), l.svcCtx.Config)
+								go sendToUser(req.AgentID, agentSecret, req.UserID, string(rs), l.svcCtx.Config)
 							}
 							return
 						}
 						rs = append(rs, []rune(s)...)
 
 						if first && len(rs) > 50 && strings.Contains(s, "\n\n") {
-							go sendToUser(req.AgentID, req.UserID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
+							go sendToUser(req.AgentID, agentSecret, req.UserID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
 							rs = []rune{}
 							first = false
 						} else if len(rs) > 100 && strings.Contains(s, "\n\n") {
-							go sendToUser(req.AgentID, req.UserID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
+							go sendToUser(req.AgentID, agentSecret, req.UserID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
 							rs = []rune{}
 						}
 					}
@@ -260,12 +292,12 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 				if strings.Contains(errInfo, "maximum context length") {
 					errInfo += "\n 请使用 #clear 清理所有上下文"
 				}
-				sendToUser(req.AgentID, req.UserID, "系统错误:"+err.Error(), l.svcCtx.Config)
+				sendToUser(req.AgentID, agentSecret, req.UserID, "系统错误:"+errInfo, l.svcCtx.Config)
 				return
 			}
 
 			// 把数据 发给微信用户
-			go sendToUser(req.AgentID, req.UserID, messageText, l.svcCtx.Config)
+			go sendToUser(req.AgentID, agentSecret, req.UserID, messageText, l.svcCtx.Config)
 
 			collection.Set("", messageText, true)
 			// 再去插入数据
@@ -279,7 +311,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 	}
 
 	if req.Channel == "wecom" {
-		sendToUser(req.AgentID, req.UserID, req.MSG, l.svcCtx.Config)
+		sendToUser(req.AgentID, agentSecret, req.UserID, req.MSG, l.svcCtx.Config)
 	}
 
 	return &types.ChatReply{
@@ -295,12 +327,10 @@ func (l *ChatLogic) setBaseHost() (ls *ChatLogic) {
 	return l
 }
 
-func (l *ChatLogic) setModelName(agentID int64) (ls *ChatLogic) {
+func (l *ChatLogic) setModelName(baseModel string) (ls *ChatLogic) {
 	m := l.svcCtx.Config.WeCom.Model
-	for _, application := range l.svcCtx.Config.WeCom.MultipleApplication {
-		if application.AgentID == agentID {
-			m = application.Model
-		}
+	if "" != baseModel {
+		m = baseModel
 	}
 	if m == "" || (m != openai.TextModel && m != openai.ChatModel && m != openai.ChatModelNew && m != openai.ChatModel4) {
 		m = openai.TextModel
@@ -309,12 +339,10 @@ func (l *ChatLogic) setModelName(agentID int64) (ls *ChatLogic) {
 	return l
 }
 
-func (l *ChatLogic) setBasePrompt(agentID int64) (ls *ChatLogic) {
+func (l *ChatLogic) setBasePrompt(prompt string) (ls *ChatLogic) {
 	p := l.svcCtx.Config.WeCom.BasePrompt
-	for _, application := range l.svcCtx.Config.WeCom.MultipleApplication {
-		if application.AgentID == agentID {
-			p = application.BasePrompt
-		}
+	if prompt != "" {
+		p = prompt
 	}
 	if p == "" {
 		p = "你是 ChatGPT, 一个由 OpenAI 训练的大型语言模型, 你旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。\n"
@@ -353,18 +381,58 @@ func (l *ChatLogic) FactoryCommend(req *types.ChatReq) (proceed bool, err error)
 	return true, nil
 }
 
-func sendToUser(agentID int64, userID, msg string, config config.Config) {
+func (l *ChatLogic) ChatTest(req *types.ChatReq) (resp *types.ChatReply, err error) {
+
+	// openai client
+	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithModel(l.model).WithBaseHost(l.baseHost)
+	if l.svcCtx.Config.Proxy.Enable {
+		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
+	}
+	// Embeddings
+	//res, err := c.CreateOpenAIEmbeddings(req.MSG)
+
+	//chat
+	//request := []openai.ChatModelMessage{{
+	//	Role:    "user",
+	//	Content: "你好，你是谁",
+	//}}
+	//res, err := c.Chat(request)
+
+	//completion
+	//res, err := c.Completion("AIGC 是什么")
+
+	//res, err := c.SpeakToTxt("./temp-files/1.mp3")
+
+	//chat stream
+	//request := []openai.ChatModelMessage{{
+	//	Role:    "user",
+	//	Content: "你好，你是谁",
+	//}}
+	//channel := make(chan string, 100)
+	//res, err := c.ChatStream(request, channel)
+
+	res, err := wecom.GetCustomer([]string{"wmWpQ2GQAAVfsj6sjrDlmU2WEYMdhA0w"})
+
+	if err == nil {
+		fmt.Println(res)
+	}
+
+	return &types.ChatReply{
+		Message: "ok",
+	}, nil
+}
+
+func sendToUser(agentID int64, agentSecret, userID, msg string, config config.Config) {
 	// 确认多应用模式是否开启
 	corpSecret := config.WeCom.DefaultAgentSecret
 	// 兼容性调整 取 DefaultAgentSecret 作为默认值 兼容老版本 CorpSecret
 	if corpSecret == "" {
 		corpSecret = config.WeCom.CorpSecret
 	}
-	for _, application := range config.WeCom.MultipleApplication {
-		if application.AgentID == agentID {
-			corpSecret = application.AgentSecret
-		}
+	if agentSecret != "" {
+		corpSecret = agentSecret
 	}
+
 	wecom.SendToWeComUser(agentID, userID, msg, corpSecret)
 }
 
@@ -379,7 +447,7 @@ func (p CommendClear) exec(l *ChatLogic, req *types.ChatReq) bool {
 	openai.NewUserContext(
 		openai.GetUserUniqueID(req.UserID, strconv.FormatInt(req.AgentID, 10)),
 	).Clear()
-	sendToUser(req.AgentID, req.UserID, "当前会话清理完成，来开始新一轮的chat吧", l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "当前会话清理完成，来开始新一轮的chat吧", l.svcCtx.Config)
 	return false
 }
 
@@ -403,7 +471,7 @@ func (p CommendHelp) exec(l *ChatLogic, req *types.ChatReq) bool {
 		"#session:clear 清空所有会话",
 		"#session:exchange:xxx 切换指定会话",
 	)
-	sendToUser(req.AgentID, req.UserID, tips, l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, tips, l.svcCtx.Config)
 	return false
 }
 
@@ -411,7 +479,7 @@ type CommendSystem struct{}
 
 func (p CommendSystem) exec(l *ChatLogic, req *types.ChatReq) bool {
 	tips := "系统信息\n model 版本为：" + l.model + "\n 系统基础设定：" + l.basePrompt + " \n"
-	sendToUser(req.AgentID, req.UserID, tips, l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, tips, l.svcCtx.Config)
 	return false
 }
 
@@ -422,7 +490,7 @@ func (p CommendConfigPrompt) exec(l *ChatLogic, req *types.ChatReq) bool {
 	// 处理 msg
 	msg := strings.Replace(req.MSG, "#config_prompt:", "", -1)
 	if msg == "" {
-		sendToUser(req.AgentID, req.UserID, "请输入完整的设置 如：#config_prompt:程序员的小助手", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "请输入完整的设置 如：#config_prompt:程序员的小助手", l.svcCtx.Config)
 		return false
 	}
 	// 去数据库新增用户的对话配置
@@ -435,11 +503,11 @@ func (p CommendConfigPrompt) exec(l *ChatLogic, req *types.ChatReq) bool {
 	_, configErr := l.svcCtx.ChatConfigModel.Insert(context.Background(), &chatConfig)
 
 	if configErr != nil {
-		sendToUser(req.AgentID, req.UserID, "设置失败,请稍后再试~", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "设置失败,请稍后再试~", l.svcCtx.Config)
 		return false
 	}
 
-	sendToUser(req.AgentID, req.UserID, "设置成功，您目前的对话配置如下：\n prompt: "+msg+"\n model: "+l.model, l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "设置成功，您目前的对话配置如下：\n prompt: "+msg+"\n model: "+l.model, l.svcCtx.Config)
 	return false
 }
 
@@ -450,13 +518,13 @@ func (p CommendConfigModel) exec(l *ChatLogic, req *types.ChatReq) bool {
 	msg := strings.Trim(strings.Replace(req.MSG, "#config_model:", "", -1), " ")
 
 	if msg == "" {
-		sendToUser(req.AgentID, req.UserID, "请输入完整的设置 如：\n#config_model:text-davinci-003", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "请输入完整的设置 如：\n#config_model:text-davinci-003", l.svcCtx.Config)
 		return false
 	}
 
 	if msg != openai.TextModel && msg != openai.ChatModel && msg != openai.ChatModelNew && msg != openai.ChatModel4 {
 		tips := fmt.Sprintf("目前只支持以下四种模型：\n %s \n %s \n %s \n %s \n", openai.TextModel, openai.ChatModel, openai.ChatModelNew, openai.ChatModel4)
-		sendToUser(req.AgentID, req.UserID, tips, l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, tips, l.svcCtx.Config)
 		return false
 	}
 
@@ -470,11 +538,11 @@ func (p CommendConfigModel) exec(l *ChatLogic, req *types.ChatReq) bool {
 	_, configErr := l.svcCtx.ChatConfigModel.Insert(context.Background(), &chatConfig)
 
 	if configErr != nil {
-		sendToUser(req.AgentID, req.UserID, "设置失败,请稍后再试~", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "设置失败,请稍后再试~", l.svcCtx.Config)
 		return false
 	}
 
-	sendToUser(req.AgentID, req.UserID, "设置成功，您目前的对话配置如下：\n prompt: "+l.basePrompt+"\n model: "+msg, l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "设置成功，您目前的对话配置如下：\n prompt: "+l.basePrompt+"\n model: "+msg, l.svcCtx.Config)
 	return false
 }
 
@@ -487,7 +555,7 @@ func (p CommendConfigClear) exec(l *ChatLogic, req *types.ChatReq) bool {
 	for _, val := range collection {
 		_ = l.svcCtx.ChatConfigModel.Delete(context.Background(), val.Id)
 	}
-	sendToUser(req.AgentID, req.UserID, "对话设置已恢复初始化", l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "对话设置已恢复初始化", l.svcCtx.Config)
 	return false
 }
 
@@ -498,7 +566,7 @@ func (p CommendWelcome) exec(l *ChatLogic, req *types.ChatReq) bool {
 	if _, err := redis.Rdb.Get(context.Background(), cacheKey).Result(); err == nil {
 		return false
 	}
-	sendToUser(req.AgentID, req.UserID, l.svcCtx.Config.WeCom.Welcome, l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, l.svcCtx.Config.WeCom.Welcome, l.svcCtx.Config)
 	_, err := redis.Rdb.SetEX(context.Background(), cacheKey, "1", 24*15*time.Hour).Result()
 	if err != nil {
 		fmt.Println("welcome2:" + err.Error())
@@ -512,37 +580,37 @@ func (p CommendImage) exec(l *ChatLogic, req *types.ChatReq) bool {
 	// #image:https://www.baidu.com/img/bd_logo1.png
 	msg := strings.Replace(req.MSG, "#image:", "", -1)
 	if msg == "" {
-		sendToUser(req.AgentID, req.UserID, "请输入完整的设置 如：#image:https://www.google.com/img/bd_logo1.png", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "请输入完整的设置 如：#image:https://www.google.com/img/bd_logo1.png", l.svcCtx.Config)
 		return false
 	}
 	vi := reflect.ValueOf(l.svcCtx.Config.OCR)
 	if vi.Kind() == reflect.Ptr && vi.IsNil() {
-		sendToUser(req.AgentID, req.UserID, "请先配置OCR", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "请先配置OCR", l.svcCtx.Config)
 		return false
 	}
 	if l.svcCtx.Config.OCR.Company != "ali" {
-		sendToUser(req.AgentID, req.UserID, "目前只支持阿里OCR", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "目前只支持阿里OCR", l.svcCtx.Config)
 		return false
 	}
 	ocrCli, _err := aliocr.CreateClient(&l.svcCtx.Config.OCR.AliYun.AccessKeyId, &l.svcCtx.Config.OCR.AliYun.AccessKeySecret)
 	if _err != nil {
 		// 创建失败
-		sendToUser(req.AgentID, req.UserID, "图片识别客户端创建失败失败:"+_err.Error(), l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "图片识别客户端创建失败失败:"+_err.Error(), l.svcCtx.Config)
 		return false
 	}
 
 	// 进行图片识别
 	txt, err := aliocr.OcrImage2Txt(msg, ocrCli)
 	if err != nil {
-		sendToUser(req.AgentID, req.UserID, "图片识别失败:"+err.Error(), l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "图片识别失败:"+err.Error(), l.svcCtx.Config)
 		return false
 	}
 	if msg == "" {
-		sendToUser(req.AgentID, req.UserID, "图片识别失败:"+err.Error(), l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "图片识别失败:"+err.Error(), l.svcCtx.Config)
 		return false
 	}
 	// 图片识别成功
-	sendToUser(req.AgentID, req.UserID, "图片识别成功:\n\n"+txt, l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "图片识别成功:\n\n"+txt, l.svcCtx.Config)
 
 	l.message = txt
 	return true
@@ -560,7 +628,7 @@ func (p CommendPromptList) exec(l *ChatLogic, req *types.ChatReq) bool {
 	for _, val := range collection {
 		prompts = append(prompts, fmt.Sprintf("%s:%d", val.Key, val.Id))
 	}
-	sendToUser(req.AgentID, req.UserID, "您的prompt如下：\n"+strings.Join(prompts, "\n"), l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "您的prompt如下：\n"+strings.Join(prompts, "\n"), l.svcCtx.Config)
 	return false
 }
 
@@ -571,20 +639,20 @@ func (p CommendPromptSet) exec(l *ChatLogic, req *types.ChatReq) bool {
 	msg := strings.Trim(strings.Replace(req.MSG, "#prompt:set:", "", -1), " ")
 
 	if msg == "" {
-		sendToUser(req.AgentID, req.UserID, "请输入完整的设置 如：\n#prompt:set:24\n", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "请输入完整的设置 如：\n#prompt:set:24\n", l.svcCtx.Config)
 		return false
 	}
 	// msg 转 int64
 	mId, err := strconv.ParseInt(msg, 10, 64)
 	if err != nil {
-		sendToUser(req.AgentID, req.UserID, "请输入完整的设置 如：\n#prompt:set:24\n", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "请输入完整的设置 如：\n#prompt:set:24\n", l.svcCtx.Config)
 		return false
 	}
 	//去根据用户输入的prompt去数据库查询是否存在
 	prompt, _err := l.svcCtx.PromptConfigModel.FindOne(context.Background(), mId)
 	switch _err {
 	case model.ErrNotFound:
-		sendToUser(req.AgentID, req.UserID, "此 prompt 不存在，请确认后再试", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "此 prompt 不存在，请确认后再试", l.svcCtx.Config)
 	case nil:
 		// 去数据库新增用户的对话配置
 		chatConfig := model.ChatConfig{
@@ -596,12 +664,12 @@ func (p CommendPromptSet) exec(l *ChatLogic, req *types.ChatReq) bool {
 		_, configErr := l.svcCtx.ChatConfigModel.Insert(context.Background(), &chatConfig)
 
 		if configErr != nil {
-			sendToUser(req.AgentID, req.UserID, msg+"设置失败:"+configErr.Error(), l.svcCtx.Config)
+			sendToUser(req.AgentID, l.agentSecret, req.UserID, msg+"设置失败:"+configErr.Error(), l.svcCtx.Config)
 			return false
 		}
-		sendToUser(req.AgentID, req.UserID, "设置成功，您目前的对话配置如下：\n prompt: "+prompt.Value+"\n model: "+l.model, l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "设置成功，您目前的对话配置如下：\n prompt: "+prompt.Value+"\n model: "+l.model, l.svcCtx.Config)
 	default:
-		sendToUser(req.AgentID, req.UserID, "设置失败, prompt 查询失败"+err.Error(), l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "设置失败, prompt 查询失败"+err.Error(), l.svcCtx.Config)
 	}
 	return false
 }
@@ -611,7 +679,7 @@ type CommendVoice struct{}
 func (p CommendVoice) exec(l *ChatLogic, req *types.ChatReq) bool {
 	msg := strings.Replace(req.MSG, "#voice:", "", -1)
 	if msg == "" {
-		sendToUser(req.AgentID, req.UserID, "未能读取到音频信息", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "未能读取到音频信息", l.svcCtx.Config)
 		return false
 	}
 	fmt.Println(msg)
@@ -625,11 +693,11 @@ func (p CommendVoice) exec(l *ChatLogic, req *types.ChatReq) bool {
 	txt, err := c.SpeakToTxt(msg)
 
 	if txt == "" {
-		sendToUser(req.AgentID, req.UserID, "音频信息转换错误:"+err.Error(), l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "音频信息转换错误:"+err.Error(), l.svcCtx.Config)
 		return false
 	}
 	// 语音识别成功
-	//sendToUser(req.AgentID, req.UserID, "语音识别成功:\n\n"+txt, l.svcCtx.Config)
+	//sendToUser(req.AgentID,agentSecret, req.UserID, "语音识别成功:\n\n"+txt, l.svcCtx.Config)
 
 	l.message = txt
 	return true
@@ -642,7 +710,7 @@ func (p CommendSession) exec(l *ChatLogic, req *types.ChatReq) bool {
 
 		openai.NewSession(openai.GetUserUniqueID(req.UserID, strconv.FormatInt(req.AgentID, 10)))
 
-		sendToUser(req.AgentID, req.UserID, "已为您保存上下文，新的会话已开启 \n您可以通过 #session:list 查看所有会话", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "已为您保存上下文，新的会话已开启 \n您可以通过 #session:list 查看所有会话", l.svcCtx.Config)
 		return false
 	}
 
@@ -657,13 +725,13 @@ func (p CommendSession) exec(l *ChatLogic, req *types.ChatReq) bool {
 				sessionList = append(sessionList, fmt.Sprintf("%s:%s", "#session:list", session))
 			}
 		}
-		sendToUser(req.AgentID, req.UserID, "您的会话列表如下：\n"+strings.Join(sessionList, "\n"), l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "您的会话列表如下：\n"+strings.Join(sessionList, "\n"), l.svcCtx.Config)
 		return false
 	}
 
 	if req.MSG == "#session:clear" {
 		openai.ClearSessions(openai.GetUserUniqueID(req.UserID, strconv.FormatInt(req.AgentID, 10)))
-		sendToUser(req.AgentID, req.UserID, "所有会话已清除", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "所有会话已清除", l.svcCtx.Config)
 		return false
 	}
 
@@ -672,13 +740,32 @@ func (p CommendSession) exec(l *ChatLogic, req *types.ChatReq) bool {
 		session := strings.Replace(req.MSG, "#session:exchange:", "", -1)
 		err := openai.SetSession(openai.GetUserUniqueID(req.UserID, strconv.FormatInt(req.AgentID, 10)), session)
 		if err != nil {
-			sendToUser(req.AgentID, req.UserID, "会话切换失败 \nerr:"+err.Error(), l.svcCtx.Config)
+			sendToUser(req.AgentID, l.agentSecret, req.UserID, "会话切换失败 \nerr:"+err.Error(), l.svcCtx.Config)
 			return false
 		}
-		sendToUser(req.AgentID, req.UserID, "已为您切换会话", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "已为您切换会话", l.svcCtx.Config)
 		return false
 	}
 
-	sendToUser(req.AgentID, req.UserID, "未知的命令，您可以通过 \n#help \n查看帮助", l.svcCtx.Config)
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "未知的命令，您可以通过 \n#help \n查看帮助", l.svcCtx.Config)
 	return false
+}
+
+func (l *ChatLogic) setAgentSecret(agentSecret string) (ls *ChatLogic) {
+	l.agentSecret = agentSecret
+	return l
+}
+
+func (l *ChatLogic) CheckClearContext(ctx context.Context, agentID int64, userId, formattedTime string) (bool, error) {
+
+	chatPo, err := l.svcCtx.ChatModel.FindAll(ctx,
+		l.svcCtx.ChatModel.RowBuilder().Where(squirrel.Eq{"agent_id": agentID}).Where(squirrel.Eq{"user": userId}).Where(" created_at>?", formattedTime),
+	)
+	if err != nil {
+		return false, err
+	}
+	if len(chatPo) > 0 {
+		return false, nil
+	}
+	return true, nil
 }

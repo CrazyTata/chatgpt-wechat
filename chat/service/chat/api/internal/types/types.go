@@ -42,6 +42,17 @@ type CustomerChatReply struct {
 	Message string `json:"message"`
 }
 
+type ChatHistoryExportReq struct {
+	UserNickname string `json:"user_nickname"`
+	OpenKfID     string `json:"open_kf_id"`
+	StartTime    string `json:"start_time,omitempty"`
+	EndTime      string `json:"end_time,omitempty"`
+}
+
+type ChatHistoryExportReply struct {
+	File string `json:"file"`
+}
+
 type UploadArticleHandlerReq struct {
 }
 
@@ -57,6 +68,13 @@ type DeleteCollectionHandlerReply struct {
 	Message string `json:"message"`
 }
 
+type DownloadChatHistoryReply struct {
+}
+
+type DownloadChatHistoryReq struct {
+	File string `form:"file"`
+}
+
 type SetPromptReq struct {
 	KfId   string `json:"kf_id"`
 	Prompt string `json:"prompt"`
@@ -70,7 +88,7 @@ type ListPromptReq struct {
 }
 
 type ListPromptReplyData struct {
-	Id     int64 `json:"id"`
+	Id     int64  `json:"id"`
 	KfId   string `json:"kf_id"`
 	Prompt string `json:"prompt"`
 }

@@ -34,9 +34,14 @@ WeCom:                                              # 企业微信配置
     Welcome: "您好！我是 ChatGPT，一个由 OpenAI 训练的大型语言模型，我可以回答您的问题和进行交流。请告诉我您需要了解些什么，我会尽力为您提供答案。发送#help 查看更多功能"  # 进入应用时的欢迎语
     EmbeddingEnable: false  #是否启用embedding
     EmbeddingMode: "QA" #embedding的搜索模式
+    Score: "0.3" #分数
+    TopK: 1 #topK
   MultipleCustomer:                                  # 多客服配置（可选）
   - EmbeddingEnable: true  #是否启用embedding
     EmbeddingMode: "ARTICLE" #embedding的搜索模式
+    Score: "0.3" #分数
+    TopK: 1 #topK
+    OpenKfId: "tata-customer1"
 
 OpenAi:                                             # openai配置
   Host: "https://api.openai.com"                    # openai host （可选，使用cf进行反向代理时，修改可用）

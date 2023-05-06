@@ -47,10 +47,15 @@ type Config struct {
 			GroupChatID     string `json:",optional,default=ChatGPT202304021958"`
 			EmbeddingEnable bool   `json:",optional,default=false"`
 			EmbeddingMode   string `json:",optional,default=QA"`
+			TopK            int    `json:",optional,default=1"`
+			Score           string `json:",optional,default=0.3"`
 		} `json:",optional"`
 		MultipleCustomer []struct {
 			EmbeddingEnable bool   `json:",optional,default=true"`
 			EmbeddingMode   string `json:",optional,default=ARTICLE"`
+			TopK            int    `json:",optional,default=1"`
+			Score           string `json:",optional,default=0.3"`
+			OpenKfId        string `json:",optional"`
 		} `json:",optional"`
 	}
 
