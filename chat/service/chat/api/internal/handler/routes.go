@@ -49,6 +49,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Path:    "/download/chat/history",
 					Handler: DownloadChatHistoryHandler(serverCtx),
 				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/tool/sync-wechat-user",
+					Handler: SyncWechatUserHandler(serverCtx),
+				},
 			}...,
 		),
 		rest.WithPrefix("/api"),

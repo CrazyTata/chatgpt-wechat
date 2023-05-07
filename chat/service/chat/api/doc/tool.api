@@ -1,0 +1,19 @@
+syntax = "v1"
+
+info(
+    title: "tool 相关 api"
+    desc: "工具"
+    author: "tata"
+    email: ""
+    version: "v1"
+)
+
+type (
+    SyncWechatUserReq {
+
+    }
+
+    SyncWechatUserReply {
+        Message string `json:"message"`
+    }
+)

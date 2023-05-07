@@ -96,3 +96,10 @@ type ListPromptReplyData struct {
 type ListPromptReply struct {
 	List []ListPromptReplyData `json:"list"`
 }
+
+type SyncWechatUserReq struct {
+}
+
+type SyncWechatUserReply struct {
+	Message string `json:"message"`
+}

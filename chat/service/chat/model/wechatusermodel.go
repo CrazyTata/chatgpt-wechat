@@ -18,6 +18,7 @@ type (
 		RowBuilder() squirrel.SelectBuilder
 		FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*WechatUser, error)
 		FindCount(ctx context.Context, countBuilder squirrel.SelectBuilder) (int64, error)
+		CountBuilder(field string) squirrel.SelectBuilder
 	}
 
 	customWechatUserModel struct {
@@ -86,4 +87,8 @@ func (m *defaultWechatUserModel) FindCount(ctx context.Context, countBuilder squ
 	default:
 		return 0, err
 	}
+}
+
+func (m *defaultWechatUserModel) CountBuilder(field string) squirrel.SelectBuilder {
+	return squirrel.Select("COUNT(" + field + ")").From(m.table)
 }
