@@ -1,9 +1,7 @@
 package openai
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	copenai "github.com/sashabaranov/go-openai"
 )
 
@@ -28,31 +26,25 @@ type (
 )
 
 func (c *ChatClient) CreateOpenAIEmbeddings(input string) (EmbeddingResponse, error) {
-	config := c.buildConfig()
 
-	cli := copenai.NewClientWithConfig(config)
 	requestBody := copenai.EmbeddingRequest{
 		Model: copenai.AdaEmbeddingV2,
 		Input: []string{input},
 	}
-	res, err := cli.CreateEmbeddings(context.Background(), requestBody)
+	var res copenai.EmbeddingResponse
 
-	if err != nil {
-		fmt.Printf("req CreateEmbeddings params: %+v ,err:%+v", config, err)
-		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-			Error:    err,
-			FuncName: "CreateEmbeddings",
-			Request:  requestBody,
-		})
-		if err1 != nil {
-			return EmbeddingResponse{}, err1
-		}
-		stream2, ok := origin.(copenai.EmbeddingResponse)
-		if !ok {
-			return EmbeddingResponse{}, errors.New("Conversion failed")
-		}
-		res = stream2
+	origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateEmbeddings",
+		Request:  requestBody,
+	})
+	if err1 != nil {
+		return EmbeddingResponse{}, err1
 	}
+	stream2, ok := origin.(copenai.EmbeddingResponse)
+	if !ok {
+		return EmbeddingResponse{}, errors.New("Conversion failed")
+	}
+	res = stream2
 
 	var arr []Embedding
 	for i, v := range res.Data {
