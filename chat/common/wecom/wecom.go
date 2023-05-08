@@ -531,6 +531,7 @@ type Customer struct {
 }
 
 // GetCustomer 获取客服信息
+// https://developer.work.weixin.qq.com/document/path/95159
 func GetCustomer(param []string) ([]Customer, error) {
 	if WeCom.CustomerServiceSecret == "" {
 		return nil, fmt.Errorf("应用密钥不匹配")

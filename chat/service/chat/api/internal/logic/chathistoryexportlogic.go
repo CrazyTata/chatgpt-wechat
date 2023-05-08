@@ -6,12 +6,12 @@ import (
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
 	"context"
+	"crypto/md5"
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/zeromicro/go-zero/core/logx"
-	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -34,26 +34,46 @@ func NewChatHistoryExportLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 }
 
 func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportReq) (resp *types.ChatHistoryExportReply, err error) {
-	key := l.ChatHistoryExportKey(req.OpenKfID, req.UserNickname)
+
+	userId, kfId, err := l.formatCondition(req)
+	if err != nil {
+		return
+	}
+	key := l.ChatHistoryExportKey(kfId, userId, req.ChatType)
 	fileUrl, err := redis.Rdb.Get(l.ctx, key).Result()
 	if err == nil {
 		return &types.ChatHistoryExportReply{File: fileUrl}, nil
 	}
-	//get userID by UserNickName
-	wechatUserPo, err := l.svcCtx.WechatUserModel.FindOneByQuery(context.Background(),
-		l.svcCtx.WechatUserModel.RowBuilder().Where(squirrel.Eq{"nickname": req.UserNickname}),
-	)
-	if err != nil {
-		return nil, err
+	countBuilder := l.svcCtx.ChatModel.CountBuilder("id")
+	rowBuilder := l.svcCtx.ChatModel.RowBuilder()
+	if userId != "" {
+		countBuilder = countBuilder.Where(squirrel.Eq{"user": userId})
+		rowBuilder = rowBuilder.Where(squirrel.Eq{"user": userId})
+	}
+	if kfId != "" {
+		countBuilder = countBuilder.Where(squirrel.Eq{"open_kf_id": kfId})
+		rowBuilder = rowBuilder.Where(squirrel.Eq{"open_kf_id": kfId})
+	}
+	if req.ChatType == 1 {
+		//机器人
+		countBuilder = countBuilder.Where(squirrel.Eq{"open_kf_id": ""})
+		rowBuilder = rowBuilder.Where(squirrel.Eq{"open_kf_id": ""})
+	} else {
+		countBuilder = countBuilder.Where(squirrel.Eq{"agent_id": ""})
+		rowBuilder = rowBuilder.Where(squirrel.Eq{"agent_id": ""})
 	}
 
-	if wechatUserPo == nil || wechatUserPo.User == "" {
-		return nil, fmt.Errorf("当前用户下没有要导出的数据")
+	if req.StartTime != "" {
+		countBuilder = countBuilder.Where("created_at >= ?", req.StartTime)
+		rowBuilder = rowBuilder.Where("created_at >= ?", req.StartTime)
 	}
 
-	chatCount, err := l.svcCtx.ChatModel.FindCount(context.Background(),
-		l.svcCtx.ChatModel.CountBuilder("id").Where(squirrel.Eq{"user": wechatUserPo.User}).Where(squirrel.Eq{"open_kf_id": req.OpenKfID}),
-	)
+	if req.EndTime != "" {
+		countBuilder = countBuilder.Where("created_at < ?", req.EndTime)
+		rowBuilder = rowBuilder.Where("created_at < ?", req.EndTime)
+	}
+
+	chatCount, err := l.svcCtx.ChatModel.FindCount(context.Background(), countBuilder)
 	if err != nil {
 		return
 	}
@@ -61,18 +81,17 @@ func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportR
 		return nil, fmt.Errorf("没有要导出的数据")
 	}
 	if chatCount > MaxExportNumber {
-		return nil, fmt.Errorf("导出数据太多，请加入时间筛选")
+		return nil, fmt.Errorf("导出数据太多，请加入筛选条件")
 	}
-	chatPo, err := l.svcCtx.ChatModel.FindAll(context.Background(),
-		l.svcCtx.ChatModel.RowBuilder().Where(squirrel.Eq{"user": wechatUserPo.User}).Where(squirrel.Eq{"open_kf_id": req.OpenKfID}),
-	)
+	chatPo, err := l.svcCtx.ChatModel.FindAll(context.Background(), rowBuilder)
 	if err != nil {
 		return
 	}
 	dirName := l.GetDirName()
 	nowTime := time.Now().Format("150405")
-
-	fileName := wechatUserPo.User + nowTime + ".csv"
+	str := userId + kfId + strconv.Itoa(int(req.ChatType))
+	hash := md5.Sum([]byte(str))
+	fileName := hex.EncodeToString(hash[:]) + nowTime + ".csv"
 	fullFilePath := dirName + fileName
 	fileHandle, err := os.Create(fullFilePath)
 	if err != nil {
@@ -84,26 +103,28 @@ func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportR
 	defer writer.Flush()
 
 	// 写入CSV头部
-	headers := []string{"id", "问题", "答案"}
+	headers := []string{"id", "问题", "答案", "时间"}
 	err = writer.Write(headers)
 	if err != nil {
 		return
 	}
 
 	// 写入CSV行
+	i := 1
 	for _, chatSon := range chatPo {
-		row := []string{strconv.Itoa(int(chatSon.Id)), chatSon.ReqContent, chatSon.ResContent}
+		row := []string{strconv.Itoa(i), chatSon.ReqContent, chatSon.ResContent, chatSon.CreatedAt.Format("2006-01-02 15:04:05")}
 		err = writer.Write(row)
 		if err != nil {
 			return nil, err
 		}
+		i++
 	}
-
+	redis.Rdb.Set(l.ctx, key, fileName, 5*time.Minute)
 	return &types.ChatHistoryExportReply{File: fileName}, nil
 }
 
-func (l *ChatHistoryExportLogic) ChatHistoryExportKey(openKfID, userNickname string) string {
-	return fmt.Sprintf(redis.ChatHistoryExportKey, openKfID, userNickname)
+func (l *ChatHistoryExportLogic) ChatHistoryExportKey(openKfID, userNickname string, chatType int32) string {
+	return fmt.Sprintf(redis.ChatHistoryExportKey, chatType, openKfID, userNickname)
 }
 
 func (l *ChatHistoryExportLogic) GetDirName() string {
@@ -115,24 +136,41 @@ func (l *ChatHistoryExportLogic) GetDirName() string {
 	return dir + "/"
 }
 
-func handleDownload(w http.ResponseWriter, filePath string) {
-	filepath := "/path/to/file"
-	file, err := os.Open(filepath)
-	if err != nil {
-		http.Error(w, "File not found", http.StatusNotFound)
-		return
+func (l *ChatHistoryExportLogic) formatCondition(req *types.ChatHistoryExportReq) (userId, kfId string, err error) {
+
+	if req.ChatType == 2 {
+		//客服聊天
+		if req.UserNickname != "" {
+			//get userID by UserNickName
+			wechatUserPo, err := l.svcCtx.WechatUserModel.FindOneByQuery(context.Background(),
+				l.svcCtx.WechatUserModel.RowBuilder().Where(squirrel.Eq{"nickname": req.UserNickname}),
+			)
+			if err != nil {
+				return "", "", err
+			}
+
+			if wechatUserPo != nil && wechatUserPo.User != "" {
+				userId = wechatUserPo.User
+			}
+		}
+		if req.KfName != "" {
+			//get openKfID by OpenKfName
+			kfPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
+				l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_name": req.KfName}),
+			)
+			if err != nil {
+				return "", "", err
+			}
+
+			if kfPo != nil && kfPo.KfId != "" {
+				kfId = kfPo.KfId
+			}
+		}
+
+	} else {
+		//机器人聊天
+		userId = req.UserNickname
+		kfId = ""
 	}
-	defer file.Close()
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		http.Error(w, "File not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Disposition", "attachment; filename="+filepath)
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", strconv.FormatInt(fileInfo.Size(), 10))
-
-	io.Copy(w, file)
+	return
 }

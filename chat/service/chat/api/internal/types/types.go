@@ -44,7 +44,8 @@ type CustomerChatReply struct {
 
 type ChatHistoryExportReq struct {
 	UserNickname string `json:"user_nickname"`
-	OpenKfID     string `json:"open_kf_id"`
+	KfName       string `json:"kf_name"`
+	ChatType     int32  `json:"chat_type"`
 	StartTime    string `json:"start_time,omitempty"`
 	EndTime      string `json:"end_time,omitempty"`
 }

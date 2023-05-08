@@ -15,7 +15,7 @@ const SessionKey = "session:%s"
 
 const OpenAIUsedKey = "chat:open_ai:used_key"
 
-const ChatHistoryExportKey = "chat:history:export:%s:%s"
+const ChatHistoryExportKey = "chat:history:export:%d:%s:%s"
 
 func Init(Host, Pass string) {
 	Rdb = redis.NewClient(&redis.Options{
