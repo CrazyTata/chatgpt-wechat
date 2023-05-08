@@ -19,8 +19,6 @@ type DownloadChatHistoryLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-const baseDir = "./temp-files/chat-history-export/"
-
 func NewDownloadChatHistoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DownloadChatHistoryLogic {
 	return &DownloadChatHistoryLogic{
 		Logger: logx.WithContext(ctx),
