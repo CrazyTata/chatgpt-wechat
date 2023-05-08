@@ -106,7 +106,6 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 	}
 	var resp copenai.AudioResponse
 	origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-		Error:    err,
 		FuncName: "CreateTranscription",
 		Request:  req,
 	})
@@ -360,75 +359,77 @@ type OpenAIRequest struct {
 	Request  interface{}
 }
 
-func (c *ChatClient) MakeOpenAILoopRequestV2(req *OpenAIRequest) (interface{}, error) {
-	if strings.Contains(req.Error.Error(), NeedLoopErrorMessage) {
-		//账号有问题
-		loopTimes := len(c.APIKeys)
-		for {
-			if loopTimes < 0 {
-				fmt.Println("循环达到最大次数")
-				return "", req.Error
-			}
-			fmt.Printf("loopTimes:%d \n", loopTimes)
-			c.WithNextOpenAIKey()
-			config := c.buildConfig()
-
-			cli := copenai.NewClientWithConfig(config)
-			var result interface{}
-			var resultError error
-
-			switch req.FuncName {
-			case "CreateTranscription":
-				result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
-
-			case "CreateCompletion":
-				result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
-
-			case "CreateChatCompletion":
-				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-
-			case "CreateChatCompletionStream":
-				resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-				if nil != resultStreamError {
-					return nil, resultStreamError
-				}
-				_, resultError = resultStream.Recv()
-				if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-					result = resultStream
-				}
-			case "CreateEmbeddings":
-				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
-
-			default:
-				fmt.Println("没有匹配到对应方法" + req.FuncName)
-				return nil, req.Error
-			}
-			if resultError != nil {
-				if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-					loopTimes--
-					continue
-				} else {
-					return "", resultError
-				}
-			}
-
-			fmt.Println("return the result")
-			return result, nil
-		}
-
-	} else {
-		return "", req.Error
-	}
-}
+//
+//func (c *ChatClient) MakeOpenAILoopRequestV2(req *OpenAIRequest) (interface{}, error) {
+//	if strings.Contains(req.Error.Error(), NeedLoopErrorMessage) {
+//		//账号有问题
+//		loopTimes := len(c.APIKeys)
+//		for {
+//			if loopTimes < 0 {
+//				fmt.Println("循环达到最大次数")
+//				return "", req.Error
+//			}
+//			fmt.Printf("loopTimes:%d \n", loopTimes)
+//			c.WithNextOpenAIKey()
+//			config := c.buildConfig()
+//
+//			cli := copenai.NewClientWithConfig(config)
+//			var result interface{}
+//			var resultError error
+//
+//			switch req.FuncName {
+//			case "CreateTranscription":
+//				result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
+//
+//			case "CreateCompletion":
+//				result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
+//
+//			case "CreateChatCompletion":
+//				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
+//
+//			case "CreateChatCompletionStream":
+//				resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
+//				if nil != resultStreamError {
+//					return nil, resultStreamError
+//				}
+//				_, resultError = resultStream.Recv()
+//				if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+//					result = resultStream
+//				}
+//			case "CreateEmbeddings":
+//				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
+//
+//			default:
+//				fmt.Println("没有匹配到对应方法" + req.FuncName)
+//				return nil, req.Error
+//			}
+//			if resultError != nil {
+//				if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+//					loopTimes--
+//					continue
+//				} else {
+//					return "", resultError
+//				}
+//			}
+//
+//			fmt.Println("return the result")
+//			return result, nil
+//		}
+//
+//	} else {
+//		return "", req.Error
+//	}
+//}
 
 func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, error) {
 	//账号有问题
 	loopTimes := len(c.APIKeys)
+	var resultError error
 	for {
 		if loopTimes < len(c.APIKeys) {
 			if loopTimes < 0 {
 				fmt.Println("循环达到最大次数")
-				return "", req.Error
+				return "", resultError
 			}
 			fmt.Printf("loopTimes:%d \n", loopTimes)
 			c.WithNextOpenAIKey()
@@ -437,8 +438,6 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 
 		cli := copenai.NewClientWithConfig(config)
 		var result interface{}
-		var resultError error
-
 		switch req.FuncName {
 		case "CreateTranscription":
 			result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
@@ -463,7 +462,7 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 
 		default:
 			fmt.Println("没有匹配到对应方法" + req.FuncName)
-			return nil, req.Error
+			return nil, fmt.Errorf("没有匹配到对应方法")
 		}
 		if resultError != nil {
 			if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
