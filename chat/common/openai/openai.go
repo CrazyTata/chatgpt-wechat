@@ -147,7 +147,7 @@ func (c *ChatClient) Completion(req string) (string, error) {
 	completion, err := cli.CreateCompletion(context.Background(), request)
 
 	if err != nil {
-		fmt.Printf("req Completion stream params: %+v ,err:%+v", config, err)
+		fmt.Printf("req Completion params: %+v ,err:%+v", config, err)
 		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
 			Error:    err,
 			FuncName: "CreateCompletion",
@@ -220,6 +220,7 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 
 func (c *ChatClient) buildConfig() copenai.ClientConfig {
 	c.WithOpenAIKey()
+	fmt.Printf("apikye:%s", c.APIKey)
 	config := copenai.DefaultConfig(c.APIKey)
 	if c.HttpProxy != "" {
 		proxyUrl, _ := url.Parse(c.HttpProxy)
@@ -304,6 +305,7 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 	defer stream.Close()
 	_, err = stream.Recv()
 	if err != nil {
+		fmt.Printf("req chat stream params: %+v ,err:%+v", config, err)
 		stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
 			Error:    err,
 			FuncName: "CreateChatCompletionStream",
@@ -396,11 +398,11 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 		//账号有问题
 		loopTimes := len(c.APIKeys)
 		for {
-			fmt.Printf("loopTimes:%d \n", loopTimes)
 			if loopTimes < 0 {
 				fmt.Println("循环达到最大次数")
 				return "", req.Error
 			}
+			fmt.Printf("loopTimes:%d \n", loopTimes)
 			c.WithNextOpenAIKey()
 			config := c.buildConfig()
 

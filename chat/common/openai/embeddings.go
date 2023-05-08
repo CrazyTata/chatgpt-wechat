@@ -38,7 +38,7 @@ func (c *ChatClient) CreateOpenAIEmbeddings(input string) (EmbeddingResponse, er
 	res, err := cli.CreateEmbeddings(context.Background(), requestBody)
 
 	if err != nil {
-		fmt.Printf("req CreateEmbeddings stream params: %+v ,err:%+v", config, err)
+		fmt.Printf("req CreateEmbeddings params: %+v ,err:%+v", config, err)
 		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
 			Error:    err,
 			FuncName: "CreateEmbeddings",

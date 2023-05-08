@@ -32,7 +32,7 @@ func ChatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		l := logic.NewChatLogic(r.Context(), svcCtx)
-		resp, err := l.ChatTest(&req)
+		resp, err := l.Chat(&req)
 		response.Response(r, w, resp, err)
 	}
 }
