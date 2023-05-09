@@ -47,9 +47,10 @@ func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
 func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) {
 	embeddingEnable := false
 	embeddingMode := l.svcCtx.Config.Embeddings.Mode
-	var baseScore, prompt, baseModel, agentSecret string
+	var prompt, baseModel, agentSecret string
 	var baseTopK int
 	var clearContextTime int64
+	var baseScore float32
 	//get config
 	applicationConfigPo, err := l.svcCtx.ApplicationConfigModel.FindOneByQuery(context.Background(),
 		l.svcCtx.ApplicationConfigModel.RowBuilder().Where(squirrel.Eq{"agent_id": req.AgentID}),
@@ -63,7 +64,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 		embeddingEnable = applicationConfigPo.EmbeddingEnable
 		embeddingMode = applicationConfigPo.EmbeddingMode
 		if applicationConfigPo.Score.Valid {
-			baseScore = strconv.FormatFloat(applicationConfigPo.Score.Float64, 'f', 2, 64)
+			baseScore = float32(applicationConfigPo.Score.Float64)
 		}
 		if applicationConfigPo.TopK != 0 {
 			baseTopK = int(applicationConfigPo.TopK)
@@ -173,7 +174,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						A string `json:"a"`
 					}
 					var embeddingData []EmbeddingData
-					result := milvusService.SearchFromQA(embedding, baseScore, baseTopK)
+					result := milvusService.SearchFromQA(embedding, baseTopK)
 					tempMessage := ""
 					for _, qa := range result {
 						if qa.Score > 0.3 {
@@ -205,13 +206,16 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						text string `json:"text"`
 					}
 					var embeddingData []EmbeddingData
-					result := milvusService.SearchFromArticle(embedding, baseScore, baseTopK)
-					for _, qa := range result {
+					result := milvusService.SearchFromArticle(embedding, baseTopK)
+					for _, item := range result {
 
-						fmt.Println("text:", qa.CnText)
-						fmt.Println("score:", qa.Score)
+						fmt.Println("text:", item.CnText)
+						fmt.Println("score:", item.Score)
+						if item.Score < baseScore {
+							continue
+						}
 						embeddingData = append(embeddingData, EmbeddingData{
-							text: qa.CnText,
+							text: item.CnText,
 						})
 					}
 					if len(embeddingData) > 0 {
@@ -219,6 +223,9 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						messageText += "CONTEXT:"
 						for _, chat := range embeddingData {
 							messageText += chat.text + "\n"
+							if c.WithModel(l.model).WithBaseHost(l.baseHost).GetNumTokens(messageText) > MaxToken {
+								break
+							}
 						}
 						messageText += "USER QUESTION:" + req.MSG
 						collection.Set(messageText, "", false)

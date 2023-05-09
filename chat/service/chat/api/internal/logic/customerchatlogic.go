@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 )
 
 const EMBEDDING_MODEMBEDDING = "ARTICLE"
+const MaxToken = 4000
 
 type CustomerChatLogic struct {
 	logx.Logger
@@ -42,233 +42,234 @@ func NewCustomerChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cust
 	}
 }
 
-func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *types.CustomerChatReply, err error) {
-
-	l.setModelName().setBasePrompt().setBaseHost()
-
-	// 确认消息没有被处理过
-	_, err = l.svcCtx.ChatModel.FindOneByQuery(context.Background(),
-		l.svcCtx.ChatModel.RowBuilder().Where(squirrel.Eq{"message_id": req.MsgID}).Where(squirrel.Eq{"user": req.CustomerID}),
-	)
-	// 消息已处理
-	if err == nil {
-		return &types.CustomerChatReply{
-			Message: "ok",
-		}, nil
-	}
-
-	// 指令匹配， 根据响应值判定是否需要去调用 openai 接口了
-	proceed, _ := l.FactoryCommend(req)
-	if !proceed {
-		return
-	}
-	if l.message != "" {
-		req.Msg = l.message
-	}
-
-	// openai client
-	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithModel(l.model).WithBaseHost(l.baseHost)
-	if l.svcCtx.Config.Proxy.Enable {
-		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
-	}
-
-	// context
-	collection := openai.NewUserContext(
-		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
-	).WithPrompt(l.basePrompt).WithClient(c)
-	var baseScore string
-	var baseTopK int
-	//get prompt
-	customerConfigPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
-		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
-	)
-	fmt.Println(customerConfigPo.Prompt)
-
-	if err != nil {
-		return nil, err
-	}
-	if customerConfigPo != nil {
-		if customerConfigPo.Prompt != "" {
-			l.basePrompt = customerConfigPo.Prompt
-		}
-		if customerConfigPo.Score.Valid {
-			baseScore = strconv.FormatFloat(customerConfigPo.Score.Float64, 'f', 2, 64)
-		}
-		if customerConfigPo.TopK != 0 {
-			baseTopK = int(customerConfigPo.TopK)
-		}
-	}
-
-	// 然后 把 消息 发给 openai
-	go func() {
-		// 去通过 embeddings 进行数据匹配
-		type EmbeddingData struct {
-			Q string `json:"q"`
-			A string `json:"a"`
-		}
-		var embeddingData []EmbeddingData
-		// 为了避免 embedding 的冷启动问题，对问题进行缓存来避免冷启动, 先简单处理
-		matchEmbeddings := len(l.svcCtx.Config.Embeddings.Milvus.Keywords) == 0
-		for _, keyword := range l.svcCtx.Config.Embeddings.Milvus.Keywords {
-			if strings.Contains(req.Msg, keyword) {
-				matchEmbeddings = true
-			}
-		}
-
-		if l.svcCtx.Config.Embeddings.Enable && matchEmbeddings {
-			milvusService, err := milvus.InitMilvus(l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			defer milvusService.CloseClient()
-			// md5 this req.MSG to key
-			key := md5.New()
-			_, _ = io.WriteString(key, req.Msg)
-			keyStr := fmt.Sprintf("%x", key.Sum(nil))
-			type EmbeddingCache struct {
-				Embedding []float64 `json:"embedding"`
-			}
-			embeddingRes, err := redis.Rdb.Get(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr)).Result()
-			if err == nil {
-				tmp := new(EmbeddingCache)
-				_ = json.Unmarshal([]byte(embeddingRes), tmp)
-
-				result := milvusService.SearchFromQA(tmp.Embedding, baseScore, baseTopK)
-				tempMessage := ""
-				for _, qa := range result {
-					if qa.Score > 0.3 {
-						continue
-					}
-					if len(embeddingData) < 2 {
-						embeddingData = append(embeddingData, EmbeddingData{
-							Q: qa.Q,
-							A: qa.A,
-						})
-					} else {
-						tempMessage += qa.Q + "\n"
-					}
-				}
-				if tempMessage != "" {
-					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage)
-				}
-			} else {
-				go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在为您搜索相关数据")
-				res, err := c.CreateOpenAIEmbeddings(req.Msg)
-				if err == nil {
-					fmt.Println(res.Data)
-					fmt.Println(l.svcCtx.Config.Embeddings)
-					embedding := res.Data[0].Embedding
-					// 去将其存入 redis
-					embeddingCache := EmbeddingCache{
-						Embedding: embedding,
-					}
-					redisData, err := json.Marshal(embeddingCache)
-					if err == nil {
-						redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
-					}
-					// 将 embedding 数据与 milvus 数据库 内的数据做对比响应前3个相关联的数据
-					result := milvusService.SearchFromQA(embedding, baseScore, baseTopK)
-
-					tempMessage := ""
-					for _, qa := range result {
-						if qa.Score > 0.3 {
-							continue
-						}
-						if len(embeddingData) < 2 {
-							embeddingData = append(embeddingData, EmbeddingData{
-								Q: qa.Q,
-								A: qa.A,
-							})
-						} else {
-							tempMessage += qa.Q + "\n"
-						}
-					}
-					if tempMessage != "" {
-						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage)
-					}
-				}
-			}
-		}
-
-		// 基于 summary 进行补充
-		messageText := ""
-		for _, chat := range embeddingData {
-			collection.Set(chat.Q, chat.A, false)
-		}
-		collection.Set(req.Msg, "", false)
-
-		prompts := collection.GetChatSummary()
-		if l.svcCtx.Config.Response.Stream {
-			channel := make(chan string, 100)
-			go func() {
-				messageText, err := c.WithModel(l.model).WithBaseHost(l.baseHost).ChatStream(prompts, channel)
-				if err != nil {
-					logx.Error("读取 stream 失败：", err.Error())
-					wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统拥挤，稍后再试~"+err.Error())
-					return
-				}
-				collection.Set("", messageText, true)
-				// 再去插入数据
-				_, _ = l.svcCtx.ChatModel.Insert(context.Background(), &model.Chat{
-					User:       req.CustomerID,
-					OpenKfId:   req.OpenKfID,
-					MessageId:  req.MsgID,
-					ReqContent: req.Msg,
-					ResContent: messageText,
-				})
-				go l.InsertWechatUser(req.CustomerID)
-			}()
-
-			var rs []rune
-			// 加快初次响应的时间 后续可改为阶梯式（用户体验好）
-			first := true
-			for {
-				s, ok := <-channel
-				if !ok {
-					// 数据接受完成
-					if len(rs) > 0 {
-						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, string(rs))
-					}
-					return
-				}
-				rs = append(rs, []rune(s)...)
-
-				if first && len(rs) > 50 && strings.Contains(s, "\n\n") {
-					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, strings.TrimRight(string(rs), "\n\n"))
-					rs = []rune{}
-					first = false
-				} else if len(rs) > 200 && strings.Contains(s, "\n\n") {
-					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, strings.TrimRight(string(rs), "\n\n"))
-					rs = []rune{}
-				}
-			}
-		}
-
-		messageText, err := c.WithModel(l.model).WithBaseHost(l.baseHost).Chat(prompts)
-
-		if err != nil {
-			wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统错误:"+err.Error())
-			return
-		}
-
-		// 然后把数据 发给对应的客户
-		go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, messageText)
-		collection.Set("", messageText, true)
-		_, _ = l.svcCtx.ChatModel.Insert(context.Background(), &model.Chat{
-			User:       req.CustomerID,
-			OpenKfId:   req.OpenKfID,
-			MessageId:  req.MsgID,
-			ReqContent: req.Msg,
-			ResContent: messageText,
-		})
-		go l.InsertWechatUser(req.CustomerID)
-	}()
-
-	return &types.CustomerChatReply{
-		Message: "ok",
-	}, nil
-}
+//
+//func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *types.CustomerChatReply, err error) {
+//
+//	l.setModelName().setBasePrompt().setBaseHost()
+//
+//	// 确认消息没有被处理过
+//	_, err = l.svcCtx.ChatModel.FindOneByQuery(context.Background(),
+//		l.svcCtx.ChatModel.RowBuilder().Where(squirrel.Eq{"message_id": req.MsgID}).Where(squirrel.Eq{"user": req.CustomerID}),
+//	)
+//	// 消息已处理
+//	if err == nil {
+//		return &types.CustomerChatReply{
+//			Message: "ok",
+//		}, nil
+//	}
+//
+//	// 指令匹配， 根据响应值判定是否需要去调用 openai 接口了
+//	proceed, _ := l.FactoryCommend(req)
+//	if !proceed {
+//		return
+//	}
+//	if l.message != "" {
+//		req.Msg = l.message
+//	}
+//
+//	// openai client
+//	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithModel(l.model).WithBaseHost(l.baseHost)
+//	if l.svcCtx.Config.Proxy.Enable {
+//		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
+//	}
+//
+//	// context
+//	collection := openai.NewUserContext(
+//		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
+//	).WithPrompt(l.basePrompt).WithClient(c)
+//	var baseScore float32
+//	var baseTopK int
+//	//get prompt
+//	customerConfigPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
+//		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
+//	)
+//	fmt.Println(customerConfigPo.Prompt)
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//	if customerConfigPo != nil {
+//		if customerConfigPo.Prompt != "" {
+//			l.basePrompt = customerConfigPo.Prompt
+//		}
+//		if customerConfigPo.Score.Valid {
+//			baseScore = float32(customerConfigPo.Score.Float64)
+//		}
+//		if customerConfigPo.TopK != 0 {
+//			baseTopK = int(customerConfigPo.TopK)
+//		}
+//	}
+//
+//	// 然后 把 消息 发给 openai
+//	go func() {
+//		// 去通过 embeddings 进行数据匹配
+//		type EmbeddingData struct {
+//			Q string `json:"q"`
+//			A string `json:"a"`
+//		}
+//		var embeddingData []EmbeddingData
+//		// 为了避免 embedding 的冷启动问题，对问题进行缓存来避免冷启动, 先简单处理
+//		matchEmbeddings := len(l.svcCtx.Config.Embeddings.Milvus.Keywords) == 0
+//		for _, keyword := range l.svcCtx.Config.Embeddings.Milvus.Keywords {
+//			if strings.Contains(req.Msg, keyword) {
+//				matchEmbeddings = true
+//			}
+//		}
+//
+//		if l.svcCtx.Config.Embeddings.Enable && matchEmbeddings {
+//			milvusService, err := milvus.InitMilvus(l.svcCtx.Config.Embeddings.Milvus.Host, l.svcCtx.Config.Embeddings.Milvus.Username, l.svcCtx.Config.Embeddings.Milvus.Password)
+//			if err != nil {
+//				fmt.Println(err.Error())
+//				return
+//			}
+//			defer milvusService.CloseClient()
+//			// md5 this req.MSG to key
+//			key := md5.New()
+//			_, _ = io.WriteString(key, req.Msg)
+//			keyStr := fmt.Sprintf("%x", key.Sum(nil))
+//			type EmbeddingCache struct {
+//				Embedding []float64 `json:"embedding"`
+//			}
+//			embeddingRes, err := redis.Rdb.Get(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr)).Result()
+//			if err == nil {
+//				tmp := new(EmbeddingCache)
+//				_ = json.Unmarshal([]byte(embeddingRes), tmp)
+//
+//				result := milvusService.SearchFromQA(tmp.Embedding, baseTopK)
+//				tempMessage := ""
+//				for _, qa := range result {
+//					if qa.Score > 0.3 {
+//						continue
+//					}
+//					if len(embeddingData) < 2 {
+//						embeddingData = append(embeddingData, EmbeddingData{
+//							Q: qa.Q,
+//							A: qa.A,
+//						})
+//					} else {
+//						tempMessage += qa.Q + "\n"
+//					}
+//				}
+//				if tempMessage != "" {
+//					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage)
+//				}
+//			} else {
+//				go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在为您搜索相关数据")
+//				res, err := c.CreateOpenAIEmbeddings(req.Msg)
+//				if err == nil {
+//					fmt.Println(res.Data)
+//					fmt.Println(l.svcCtx.Config.Embeddings)
+//					embedding := res.Data[0].Embedding
+//					// 去将其存入 redis
+//					embeddingCache := EmbeddingCache{
+//						Embedding: embedding,
+//					}
+//					redisData, err := json.Marshal(embeddingCache)
+//					if err == nil {
+//						redis.Rdb.Set(context.Background(), fmt.Sprintf(redis.EmbeddingsCacheKey, keyStr), string(redisData), -1*time.Second)
+//					}
+//					// 将 embedding 数据与 milvus 数据库 内的数据做对比响应前3个相关联的数据
+//					result := milvusService.SearchFromQA(embedding, baseTopK)
+//
+//					tempMessage := ""
+//					for _, qa := range result {
+//						if qa.Score > 0.3 {
+//							continue
+//						}
+//						if len(embeddingData) < 2 {
+//							embeddingData = append(embeddingData, EmbeddingData{
+//								Q: qa.Q,
+//								A: qa.A,
+//							})
+//						} else {
+//							tempMessage += qa.Q + "\n"
+//						}
+//					}
+//					if tempMessage != "" {
+//						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage)
+//					}
+//				}
+//			}
+//		}
+//
+//		// 基于 summary 进行补充
+//		messageText := ""
+//		for _, chat := range embeddingData {
+//			collection.Set(chat.Q, chat.A, false)
+//		}
+//		collection.Set(req.Msg, "", false)
+//
+//		prompts := collection.GetChatSummary()
+//		if l.svcCtx.Config.Response.Stream {
+//			channel := make(chan string, 100)
+//			go func() {
+//				messageText, err := c.WithModel(l.model).WithBaseHost(l.baseHost).ChatStream(prompts, channel)
+//				if err != nil {
+//					logx.Error("读取 stream 失败：", err.Error())
+//					wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统拥挤，稍后再试~"+err.Error())
+//					return
+//				}
+//				collection.Set("", messageText, true)
+//				// 再去插入数据
+//				_, _ = l.svcCtx.ChatModel.Insert(context.Background(), &model.Chat{
+//					User:       req.CustomerID,
+//					OpenKfId:   req.OpenKfID,
+//					MessageId:  req.MsgID,
+//					ReqContent: req.Msg,
+//					ResContent: messageText,
+//				})
+//				go l.InsertWechatUser(req.CustomerID)
+//			}()
+//
+//			var rs []rune
+//			// 加快初次响应的时间 后续可改为阶梯式（用户体验好）
+//			first := true
+//			for {
+//				s, ok := <-channel
+//				if !ok {
+//					// 数据接受完成
+//					if len(rs) > 0 {
+//						go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, string(rs))
+//					}
+//					return
+//				}
+//				rs = append(rs, []rune(s)...)
+//
+//				if first && len(rs) > 50 && strings.Contains(s, "\n\n") {
+//					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, strings.TrimRight(string(rs), "\n\n"))
+//					rs = []rune{}
+//					first = false
+//				} else if len(rs) > 200 && strings.Contains(s, "\n\n") {
+//					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, strings.TrimRight(string(rs), "\n\n"))
+//					rs = []rune{}
+//				}
+//			}
+//		}
+//
+//		messageText, err := c.WithModel(l.model).WithBaseHost(l.baseHost).Chat(prompts)
+//
+//		if err != nil {
+//			wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统错误:"+err.Error())
+//			return
+//		}
+//
+//		// 然后把数据 发给对应的客户
+//		go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, messageText)
+//		collection.Set("", messageText, true)
+//		_, _ = l.svcCtx.ChatModel.Insert(context.Background(), &model.Chat{
+//			User:       req.CustomerID,
+//			OpenKfId:   req.OpenKfID,
+//			MessageId:  req.MsgID,
+//			ReqContent: req.Msg,
+//			ResContent: messageText,
+//		})
+//		go l.InsertWechatUser(req.CustomerID)
+//	}()
+//
+//	return &types.CustomerChatReply{
+//		Message: "ok",
+//	}, nil
+//}
 
 func (l *CustomerChatLogic) setModelName() (ls *CustomerChatLogic) {
 	m := l.svcCtx.Config.WeCom.Model
@@ -391,7 +392,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	}
 	embeddingEnable := true
 	embeddingMode := EMBEDDING_MODEMBEDDING
-	var baseScore string
+	var baseScore float32
 	var baseTopK int
 	var clearContextTime int64
 
@@ -411,7 +412,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 		embeddingEnable = customerConfigPo.EmbeddingEnable
 		embeddingMode = customerConfigPo.EmbeddingMode
 		if customerConfigPo.Score.Valid {
-			baseScore = strconv.FormatFloat(customerConfigPo.Score.Float64, 'f', 2, 64)
+			baseScore = float32(customerConfigPo.Score.Float64)
 		}
 		if customerConfigPo.TopK != 0 {
 			baseTopK = int(customerConfigPo.TopK)
@@ -487,7 +488,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 					A string `json:"a"`
 				}
 				var embeddingData []EmbeddingData
-				result := milvusService.SearchFromQA(embedding, baseScore, baseTopK)
+				result := milvusService.SearchFromQA(embedding, baseTopK)
 				tempMessage := ""
 				for _, qa := range result {
 					if qa.Score > 0.3 {
@@ -519,12 +520,16 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 					text string `json:"text"`
 				}
 				var embeddingData []EmbeddingData
-				result := milvusService.SearchFromArticle(embedding, baseScore, baseTopK)
-				for _, qa := range result {
-					fmt.Println("text:", qa.CnText)
-					fmt.Println("score:", qa.Score)
+				result := milvusService.SearchFromArticle(embedding, baseTopK)
+
+				for _, item := range result {
+					fmt.Println("text:", item.CnText)
+					fmt.Println("score:", item.Score)
+					if item.Score < baseScore {
+						continue
+					}
 					embeddingData = append(embeddingData, EmbeddingData{
-						text: qa.CnText,
+						text: item.CnText,
 					})
 				}
 
@@ -533,6 +538,9 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 					messageText += "CONTEXT:"
 					for _, chat := range embeddingData {
 						messageText += chat.text + "\n\n"
+						if c.WithModel(l.model).WithBaseHost(l.baseHost).GetNumTokens(messageText) > MaxToken {
+							break
+						}
 					}
 					messageText += "USER QUESTION:" + req.Msg
 					collection.Set(messageText, "", false)

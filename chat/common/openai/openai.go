@@ -272,8 +272,6 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 		TopP:        1,
 	}
 	var stream *copenai.ChatCompletionStream
-
-	defer stream.Close()
 	stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
 		FuncName: "CreateChatCompletionStream",
 		Request:  request,
@@ -466,7 +464,7 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 		}
 		if resultError != nil {
 			if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-				fmt.Printf("req chat stream params: %+v ,err:%+v ,dealMethod:%s \n", req.Request, resultError, req.FuncName)
+				fmt.Printf("MakeOpenAILoopRequest params: %+v ,err:%+v ,dealMethod:%s \n", req.Request, resultError, req.FuncName)
 				loopTimes--
 				continue
 			} else {
@@ -474,8 +472,20 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 			}
 		}
 
-		fmt.Println("return the result")
+		fmt.Printf("MakeOpenAILoopRequest params: %+v ,err:%+v ,dealMethod:%s, response:%+v \n", req.Request, resultError, req.FuncName, result)
 		return result, nil
 	}
 
+}
+
+//估算长度
+
+func (c *ChatClient) GetNumTokens(message string) int {
+	var messages []ChatModelMessage
+	messages = append(messages, ChatModelMessage{
+		Role:    "user",
+		Content: message,
+	})
+
+	return NumTokensFromMessages(messages, ChatModel)
 }
