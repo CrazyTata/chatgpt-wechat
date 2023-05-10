@@ -25,4 +25,5 @@ go.work
 chat-api.yaml
 build
 temp-files
+log
 service/chat/api/.agollo

@@ -2,6 +2,7 @@ package openai
 
 import (
 	"chat/common/redis"
+	"chat/common/util"
 	context "context"
 	"errors"
 	"fmt"
@@ -462,6 +463,7 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 			fmt.Println("没有匹配到对应方法" + req.FuncName)
 			return nil, fmt.Errorf("没有匹配到对应方法")
 		}
+		util.Info(fmt.Sprintf("MakeOpenAILoopRequest dealMethod:%s,params: %+v ,err:%+v , response:%+v \n\n", req.FuncName, req.Request, resultError, result))
 		if resultError != nil {
 			if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
 				fmt.Printf("MakeOpenAILoopRequest params: %+v ,err:%+v ,dealMethod:%s \n", req.Request, resultError, req.FuncName)
@@ -472,7 +474,6 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 			}
 		}
 
-		fmt.Printf("MakeOpenAILoopRequest params: %+v ,err:%+v ,dealMethod:%s, response:%+v \n", req.Request, resultError, req.FuncName, result)
 		return result, nil
 	}
 
