@@ -56,7 +56,7 @@ func main() {
 	wecom.WeCom.Auth.AccessSecret = c.Auth.AccessSecret
 	wecom.WeCom.Auth.AccessExpire = c.Auth.AccessExpire
 	wecom.WeCom.MultipleApplication = startup.InitConfig(ctx)
-	fmt.Printf("wecom.WeCom:%+v", wecom.WeCom)
+
 	//for _, v := range c.WeCom.MultipleApplication {
 	//	wecom.WeCom.MultipleApplication = append(wecom.WeCom.MultipleApplication, wecom.Application{
 	//		AgentID:     v.AgentID,

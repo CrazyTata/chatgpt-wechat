@@ -35,7 +35,7 @@ func NewChatHistoryExportLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 
 func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportReq) (resp *types.ChatHistoryExportReply, err error) {
 
-	userId, kfId, err := l.formatCondition(req)
+	userId, kfId, agentId, err := l.formatCondition(req)
 	if err != nil {
 		return
 	}
@@ -54,14 +54,18 @@ func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportR
 		countBuilder = countBuilder.Where(squirrel.Eq{"open_kf_id": kfId})
 		rowBuilder = rowBuilder.Where(squirrel.Eq{"open_kf_id": kfId})
 	}
-	if req.ChatType == 1 {
-		//机器人
-		countBuilder = countBuilder.Where(squirrel.Eq{"open_kf_id": ""})
-		rowBuilder = rowBuilder.Where(squirrel.Eq{"open_kf_id": ""})
-	} else {
-		countBuilder = countBuilder.Where(squirrel.Eq{"agent_id": ""})
-		rowBuilder = rowBuilder.Where(squirrel.Eq{"agent_id": ""})
+	if agentId != 0 {
+		countBuilder = countBuilder.Where(squirrel.Eq{"agent_id": agentId})
+		rowBuilder = rowBuilder.Where(squirrel.Eq{"agent_id": agentId})
 	}
+	//if req.ChatType == 1 {
+	//	//机器人
+	//	countBuilder = countBuilder.Where(squirrel.Eq{"open_kf_id": ""})
+	//	rowBuilder = rowBuilder.Where(squirrel.Eq{"open_kf_id": ""})
+	//} else {
+	//	countBuilder = countBuilder.Where(squirrel.Eq{"agent_id": ""})
+	//	rowBuilder = rowBuilder.Where(squirrel.Eq{"agent_id": ""})
+	//}
 
 	if req.StartTime != "" {
 		countBuilder = countBuilder.Where("created_at >= ?", req.StartTime)
@@ -103,7 +107,7 @@ func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportR
 	defer writer.Flush()
 
 	// 写入CSV头部
-	headers := []string{"id", "问题", "答案", "时间"}
+	headers := []string{"ID", "user", "content", "time"}
 	err = writer.Write(headers)
 	if err != nil {
 		return
@@ -112,15 +116,25 @@ func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportR
 	// 写入CSV行
 	i := 1
 	for _, chatSon := range chatPo {
-		row := []string{strconv.Itoa(i), chatSon.ReqContent, chatSon.ResContent, chatSon.CreatedAt.Format("2006-01-02 15:04:05")}
-		err = writer.Write(row)
+		//客户聊天
+		row1 := []string{strconv.Itoa(i), req.UserNickname, chatSon.ReqContent, chatSon.CreatedAt.Format("2006-01-02 15:04:05")}
+		err = writer.Write(row1)
 		if err != nil {
 			return nil, err
 		}
 		i++
+		//客服聊天
+		row2 := []string{strconv.Itoa(i), req.KfName, chatSon.ResContent, chatSon.CreatedAt.Format("2006-01-02 15:04:05")}
+		err = writer.Write(row2)
+		if err != nil {
+			return nil, err
+		}
+
+		i++
 	}
 	redis.Rdb.Set(l.ctx, key, fileName, 5*time.Minute)
-	return &types.ChatHistoryExportReply{File: fileName}, nil
+	lastFile := "localhost:" + strconv.Itoa(l.svcCtx.Config.Port) + "/api/download/chat/history?file=" + fileName
+	return &types.ChatHistoryExportReply{File: lastFile}, nil
 }
 
 func (l *ChatHistoryExportLogic) ChatHistoryExportKey(openKfID, userNickname string, chatType int32) string {
@@ -136,8 +150,10 @@ func (l *ChatHistoryExportLogic) GetDirName() string {
 	return dir + "/"
 }
 
-func (l *ChatHistoryExportLogic) formatCondition(req *types.ChatHistoryExportReq) (userId, kfId string, err error) {
-
+func (l *ChatHistoryExportLogic) formatCondition(req *types.ChatHistoryExportReq) (userId, kfId string, agentId int64, err error) {
+	if req.UserNickname == "" || req.KfName == "" {
+		return "", "", 0, fmt.Errorf("缺少必传参数")
+	}
 	if req.ChatType == 2 {
 		//客服聊天
 		if req.UserNickname != "" {
@@ -146,7 +162,7 @@ func (l *ChatHistoryExportLogic) formatCondition(req *types.ChatHistoryExportReq
 				l.svcCtx.WechatUserModel.RowBuilder().Where(squirrel.Eq{"nickname": req.UserNickname}),
 			)
 			if err != nil {
-				return "", "", err
+				return "", "", 0, err
 			}
 
 			if wechatUserPo != nil && wechatUserPo.User != "" {
@@ -159,7 +175,7 @@ func (l *ChatHistoryExportLogic) formatCondition(req *types.ChatHistoryExportReq
 				l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_name": req.KfName}),
 			)
 			if err != nil {
-				return "", "", err
+				return "", "", 0, err
 			}
 
 			if kfPo != nil && kfPo.KfId != "" {
@@ -170,7 +186,20 @@ func (l *ChatHistoryExportLogic) formatCondition(req *types.ChatHistoryExportReq
 	} else {
 		//机器人聊天
 		userId = req.UserNickname
-		kfId = ""
+		if req.KfName != "" {
+			//get openKfID by OpenKfName
+			applicationPo, err := l.svcCtx.ApplicationConfigModel.FindOneByQuery(context.Background(),
+				l.svcCtx.ApplicationConfigModel.RowBuilder().Where(squirrel.Eq{"agent_name": req.KfName}),
+			)
+			if err != nil {
+				return "", "", 0, err
+			}
+
+			if applicationPo != nil && applicationPo.AgentId != 0 {
+				agentId = applicationPo.AgentId
+			}
+		}
+
 	}
 	return
 }
