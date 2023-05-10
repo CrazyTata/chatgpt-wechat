@@ -2,6 +2,7 @@ package main
 
 import (
 	"chat/common/redis"
+	"chat/service/chat/api/internal/startup"
 	"flag"
 	"fmt"
 	"github.com/zeromicro/go-zero/core/conf"
@@ -54,23 +55,25 @@ func main() {
 	wecom.WeCom.EncodingAESKey = c.WeCom.EncodingAESKey
 	wecom.WeCom.Auth.AccessSecret = c.Auth.AccessSecret
 	wecom.WeCom.Auth.AccessExpire = c.Auth.AccessExpire
-	for _, v := range c.WeCom.MultipleApplication {
-		wecom.WeCom.MultipleApplication = append(wecom.WeCom.MultipleApplication, wecom.Application{
-			AgentID:     v.AgentID,
-			AgentSecret: v.AgentSecret,
-		})
-	}
+	wecom.WeCom.MultipleApplication = startup.InitConfig(ctx)
+	fmt.Printf("wecom.WeCom:%+v", wecom.WeCom)
+	//for _, v := range c.WeCom.MultipleApplication {
+	//	wecom.WeCom.MultipleApplication = append(wecom.WeCom.MultipleApplication, wecom.Application{
+	//		AgentID:     v.AgentID,
+	//		AgentSecret: v.AgentSecret,
+	//	})
+	//}
 
 	go wecom.XmlServe()
 
-	if len(c.WeCom.MultipleApplication) > 0 {
-		for _, v := range c.WeCom.MultipleApplication {
-			if v.GroupEnable {
-				fmt.Println("初始化群聊", v.GroupName, v.GroupChatID, c.WeCom.CorpID, v.AgentSecret, v.AgentID)
-				go wecom.InitGroup(v.GroupName, v.GroupChatID, v.AgentSecret, v.AgentID)
-			}
-		}
-	}
+	//if len(c.WeCom.MultipleApplication) > 0 {
+	//	for _, v := range c.WeCom.MultipleApplication {
+	//		if v.GroupEnable {
+	//			fmt.Println("初始化群聊", v.GroupName, v.GroupChatID, c.WeCom.CorpID, v.AgentSecret, v.AgentID)
+	//			go wecom.InitGroup(v.GroupName, v.GroupChatID, v.AgentSecret, v.AgentID)
+	//		}
+	//	}
+	//}
 
 	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
 	server.Start()
