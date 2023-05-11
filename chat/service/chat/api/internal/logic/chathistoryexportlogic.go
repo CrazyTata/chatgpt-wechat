@@ -132,8 +132,8 @@ func (l *ChatHistoryExportLogic) ChatHistoryExport(req *types.ChatHistoryExportR
 
 		i++
 	}
-	redis.Rdb.Set(l.ctx, key, fileName, 5*time.Minute)
 	lastFile := "localhost:" + strconv.Itoa(l.svcCtx.Config.Port) + "/api/download/chat/history?file=" + fileName
+	redis.Rdb.Set(l.ctx, key, lastFile, 5*time.Minute)
 	return &types.ChatHistoryExportReply{File: lastFile}, nil
 }
 
