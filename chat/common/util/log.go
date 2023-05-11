@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const BaseLogDirectory = "./log/"
+const BaseLogDirectory = "/var/log/chatgpt-wechat/"
 const LogDirectoryInfo = "info"
 const LogDirectoryError = "error"
 
