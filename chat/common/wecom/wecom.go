@@ -1,6 +1,7 @@
 package wecom
 
 import (
+	"chat/common/util"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -508,4 +509,50 @@ func DealCustomerVoiceMessageByMediaID(mediaID string) (string, error) {
 	filepath := fmt.Sprintf("/tmp/voice/%s", mediaID)
 	err := DownloadFile("/tmp/voice", filepath, "amr", url)
 	return filepath + ".mp3", err
+}
+
+type GetCustomerRequest struct {
+	ExternalUseridList      []string `json:"external_userid_list"`
+	NeedEnterSessionContext int      `json:"need_enter_session_context"`
+}
+
+type GetCustomerResponse struct {
+	ErrCode             int        `json:"errcode"`
+	ErrMsg              string     `json:"errmsg"`
+	CustomerList        []Customer `json:"customer_list"`
+	InvalidExternalUser []string   `json:"invalid_external_userid"`
+}
+type Customer struct {
+	ExternalUserID string `json:"external_userid"`
+	Nickname       string `json:"nickname"`
+	Avatar         string `json:"avatar"`
+	Gender         int64  `json:"gender"`
+	Unionid        string `json:"unionid"`
+}
+
+// GetCustomer 获取客服信息
+// https://developer.work.weixin.qq.com/document/path/95159
+func GetCustomer(param []string) ([]Customer, error) {
+	if WeCom.CustomerServiceSecret == "" {
+		return nil, fmt.Errorf("应用密钥不匹配")
+	}
+	app := workwx.New(WeCom.CorpID).WithApp(WeCom.CustomerServiceSecret, 0)
+	token := app.GetAccessToken()
+	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/kf/customer/batchget?access_token=%s", token)
+	request := GetCustomerRequest{
+		ExternalUseridList: param,
+	}
+	params, _ := json.Marshal(request)
+	fmt.Println("req GetCustomer url:", url)
+	info, err := util.Post(url, params, map[string]string{})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("req GetCustomer url:%s params:%s response:%s", url, params, string(info))
+	var response GetCustomerResponse
+	_ = json.Unmarshal(info, &response)
+	if info != nil && response.ErrCode == 0 && len(response.CustomerList) > 0 {
+		return response.CustomerList, nil
+	}
+	return nil, err
 }

@@ -5,6 +5,7 @@ import (
 	"doc/chat.api"
 	"doc/uploadfile.api"
 	"doc/config.api"
+	"doc/tool.api"
 )
 
 info(
@@ -39,6 +40,12 @@ service chat-api {
 	@handler ListPromptHandler
 	post /prompt/list (ListPromptReq) returns (ListPromptReply)
 	
+	@handler DownloadChatHistoryHandler
+	get /download/chat/history (DownloadChatHistoryReq) returns (DownloadChatHistoryReply)
+	
+	@handler SyncWechatUserHandler
+	get /tool/sync-wechat-user (SyncWechatUserReq) returns (SyncWechatUserReply)
+	
 }
 
 // 需要鉴权的服务
@@ -53,5 +60,8 @@ service chat-api {
 	
 	@handler CustomerChatHandler
 	post /msg/customer/push (CustomerChatReq) returns (CustomerChatReply)
+	
+	@handler ChatHistoryExportHandler
+	post /msg/history/export (ChatHistoryExportReq) returns (ChatHistoryExportReply)
 	
 }

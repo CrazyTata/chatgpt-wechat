@@ -2,6 +2,7 @@ package openai
 
 import (
 	"chat/common/redis"
+	"chat/common/util"
 	context "context"
 	"errors"
 	"fmt"
@@ -87,9 +88,6 @@ func (c *ChatClient) WithSocks5Proxy(proxyUrl string) *ChatClient {
 }
 
 func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
-	config := c.buildConfig()
-	cli := copenai.NewClientWithConfig(config)
-
 	// 打印文件信息
 	logx.Info("File: ", voiceUrl)
 	info, err := os.Stat(voiceUrl)
@@ -107,24 +105,20 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 		Temperature: 0.5,
 		Language:    "zh",
 	}
-	resp, err := cli.CreateTranscription(context.Background(), req)
-
-	if err != nil {
-		fmt.Printf("req SpeakToTxt params: %+v ,err:%+v", config, err)
-		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-			Error:    err,
-			FuncName: "CreateTranscription",
-			Request:  req,
-		})
-		if err1 != nil {
-			return "", err1
-		}
-		origin2, ok := origin.(copenai.AudioResponse)
-		if !ok {
-			return "", errors.New("Conversion failed")
-		}
-		resp = origin2
+	var resp copenai.AudioResponse
+	origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateTranscription",
+		Request:  req,
+	})
+	if err1 != nil {
+		return "", err1
 	}
+	origin2, ok := origin.(copenai.AudioResponse)
+	if !ok {
+		return "", errors.New("conversion failed")
+	}
+	resp = origin2
+
 	// 用完就删掉
 	_ = os.Remove(voiceUrl)
 
@@ -132,9 +126,6 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 }
 
 func (c *ChatClient) Completion(req string) (string, error) {
-	config := c.buildConfig()
-	cli := copenai.NewClientWithConfig(config)
-
 	// 打印请求信息
 	logx.Info("Completion req: ", req)
 	request := copenai.CompletionRequest{
@@ -144,24 +135,20 @@ func (c *ChatClient) Completion(req string) (string, error) {
 		Temperature: c.Temperature,
 		TopP:        1,
 	}
-	completion, err := cli.CreateCompletion(context.Background(), request)
-
-	if err != nil {
-		fmt.Printf("req Completion stream params: %+v ,err:%+v", config, err)
-		origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-			Error:    err,
-			FuncName: "CreateCompletion",
-			Request:  request,
-		})
-		if err1 != nil {
-			return "", err1
-		}
-		origin1, ok := origin.(copenai.CompletionResponse)
-		if !ok {
-			return "", errors.New("Conversion failed")
-		}
-		completion = origin1
+	var completion copenai.CompletionResponse
+	origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateCompletion",
+		Request:  request,
+	})
+	if err1 != nil {
+		return "", err1
 	}
+	origin1, ok := origin.(copenai.CompletionResponse)
+	if !ok {
+		return "", errors.New("conversion failed")
+	}
+	completion = origin1
+
 	txt := ""
 	for _, choice := range completion.Choices {
 		txt += choice.Text
@@ -171,9 +158,6 @@ func (c *ChatClient) Completion(req string) (string, error) {
 }
 
 func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
-
-	config := c.buildConfig()
-	cli := copenai.NewClientWithConfig(config)
 
 	// 打印请求信息
 	logx.Info("req: ", req)
@@ -193,23 +177,20 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 		Temperature: c.Temperature,
 		TopP:        1,
 	}
-	chat, err := cli.CreateChatCompletion(context.Background(), request)
-	if err != nil {
-		fmt.Printf("req chat params: %+v ,err:%+v", config, err)
-		chatOrigin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-			Error:    err,
-			FuncName: "CreateChatCompletion",
-			Request:  request,
-		})
-		if err1 != nil {
-			return "", err1
-		}
-		chat1, ok := chatOrigin.(copenai.ChatCompletionResponse)
-		if !ok {
-			return "", errors.New("Conversion failed")
-		}
-		chat = chat1
+	var chat copenai.ChatCompletionResponse
+	chatOrigin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateChatCompletion",
+		Request:  request,
+	})
+	if err1 != nil {
+		return "", err1
 	}
+	chat1, ok := chatOrigin.(copenai.ChatCompletionResponse)
+	if !ok {
+		return "", errors.New("conversion failed")
+	}
+	chat = chat1
+
 	txt := ""
 	for _, choice := range chat.Choices {
 		txt += choice.Message.Content
@@ -220,6 +201,7 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 
 func (c *ChatClient) buildConfig() copenai.ClientConfig {
 	c.WithOpenAIKey()
+	fmt.Printf("apikye:%s \n", c.APIKey)
 	config := copenai.DefaultConfig(c.APIKey)
 	if c.HttpProxy != "" {
 		proxyUrl, _ := url.Parse(c.HttpProxy)
@@ -249,10 +231,6 @@ func (c *ChatClient) buildConfig() copenai.ClientConfig {
 
 // ChatStream 数据流式传输
 func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (string, error) {
-
-	config := c.buildConfig()
-
-	cli := copenai.NewClientWithConfig(config)
 
 	// 打印请求信息
 	logx.Info("req: ", req)
@@ -295,30 +273,19 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 		TopP:        1,
 	}
 	var stream *copenai.ChatCompletionStream
-	stream, err := cli.CreateChatCompletionStream(context.Background(), request)
-
-	if err != nil {
-		fmt.Printf("req chat stream params: %+v ,err:%+v", config, err)
-		return "", err
+	stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateChatCompletionStream",
+		Request:  request,
+	})
+	if err1 != nil {
+		fmt.Println(err1)
+		return "", err1
 	}
-	defer stream.Close()
-	_, err = stream.Recv()
-	if err != nil {
-		stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-			Error:    err,
-			FuncName: "CreateChatCompletionStream",
-			Request:  request,
-		})
-		if err1 != nil {
-			fmt.Println(err1)
-			return "", err1
-		}
-		stream2, ok := stream1.(*copenai.ChatCompletionStream)
-		if !ok {
-			return "", errors.New("Conversion failed")
-		}
-		stream = stream2
+	stream2, ok := stream1.(*copenai.ChatCompletionStream)
+	if !ok {
+		return "", errors.New("conversion failed")
 	}
+	stream = stream2
 	messageText := ""
 	for {
 		response, err := stream.Recv()
@@ -391,63 +358,135 @@ type OpenAIRequest struct {
 	Request  interface{}
 }
 
+//
+//func (c *ChatClient) MakeOpenAILoopRequestV2(req *OpenAIRequest) (interface{}, error) {
+//	if strings.Contains(req.Error.Error(), NeedLoopErrorMessage) {
+//		//账号有问题
+//		loopTimes := len(c.APIKeys)
+//		for {
+//			if loopTimes < 0 {
+//				fmt.Println("循环达到最大次数")
+//				return "", req.Error
+//			}
+//			fmt.Printf("loopTimes:%d \n", loopTimes)
+//			c.WithNextOpenAIKey()
+//			config := c.buildConfig()
+//
+//			cli := copenai.NewClientWithConfig(config)
+//			var result interface{}
+//			var resultError error
+//
+//			switch req.FuncName {
+//			case "CreateTranscription":
+//				result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
+//
+//			case "CreateCompletion":
+//				result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
+//
+//			case "CreateChatCompletion":
+//				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
+//
+//			case "CreateChatCompletionStream":
+//				resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
+//				if nil != resultStreamError {
+//					return nil, resultStreamError
+//				}
+//				_, resultError = resultStream.Recv()
+//				if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+//					result = resultStream
+//				}
+//			case "CreateEmbeddings":
+//				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
+//
+//			default:
+//				fmt.Println("没有匹配到对应方法" + req.FuncName)
+//				return nil, req.Error
+//			}
+//			if resultError != nil {
+//				if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+//					loopTimes--
+//					continue
+//				} else {
+//					return "", resultError
+//				}
+//			}
+//
+//			fmt.Println("return the result")
+//			return result, nil
+//		}
+//
+//	} else {
+//		return "", req.Error
+//	}
+//}
+
 func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, error) {
-	if strings.Contains(req.Error.Error(), NeedLoopErrorMessage) {
-		//账号有问题
-		loopTimes := len(c.APIKeys)
-		for {
-			fmt.Printf("loopTimes:%d \n", loopTimes)
+	//账号有问题
+	loopTimes := len(c.APIKeys)
+	var resultError error
+	for {
+		if loopTimes < len(c.APIKeys) {
 			if loopTimes < 0 {
 				fmt.Println("循环达到最大次数")
-				return "", req.Error
+				return "", resultError
 			}
+			fmt.Printf("loopTimes:%d \n", loopTimes)
 			c.WithNextOpenAIKey()
-			config := c.buildConfig()
+		}
+		config := c.buildConfig()
 
-			cli := copenai.NewClientWithConfig(config)
-			var result interface{}
-			var resultError error
+		cli := copenai.NewClientWithConfig(config)
+		var result interface{}
+		switch req.FuncName {
+		case "CreateTranscription":
+			result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
 
-			switch req.FuncName {
-			case "CreateTranscription":
-				result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
+		case "CreateCompletion":
+			result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
 
-			case "CreateCompletion":
-				result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
+		case "CreateChatCompletion":
+			result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
 
-			case "CreateChatCompletion":
-				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-
-			case "CreateChatCompletionStream":
-				resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-				if nil != resultStreamError {
-					return nil, resultStreamError
-				}
-				_, resultError = resultStream.Recv()
-				if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-					result = resultStream
-				}
-			case "CreateEmbeddings":
-				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
-
-			default:
-				fmt.Println("没有匹配到对应方法" + req.FuncName)
-				return nil, req.Error
+		case "CreateChatCompletionStream":
+			resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
+			if nil != resultStreamError {
+				return nil, resultStreamError
 			}
-			if resultError != nil {
-				if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-					loopTimes--
-					continue
-				} else {
-					return "", resultError
-				}
+			_, resultError = resultStream.Recv()
+			if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+				result = resultStream
 			}
+		case "CreateEmbeddings":
+			result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
 
-			fmt.Println("return the result")
-			return result, nil
+		default:
+			fmt.Println("没有匹配到对应方法" + req.FuncName)
+			return nil, fmt.Errorf("没有匹配到对应方法")
+		}
+		util.Info(fmt.Sprintf("MakeOpenAILoopRequest dealMethod:%s,params: %+v ,err:%+v , response:%+v \n\n", req.FuncName, req.Request, resultError, result))
+		if resultError != nil {
+			if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
+				fmt.Printf("MakeOpenAILoopRequest params: %+v ,err:%+v ,dealMethod:%s \n", req.Request, resultError, req.FuncName)
+				loopTimes--
+				continue
+			} else {
+				return "", resultError
+			}
 		}
 
-	} else {
-		return "", req.Error
+		return result, nil
 	}
+
+}
+
+//估算长度
+
+func (c *ChatClient) GetNumTokens(message string) int {
+	var messages []ChatModelMessage
+	messages = append(messages, ChatModelMessage{
+		Role:    "user",
+		Content: message,
+	})
+
+	return NumTokensFromMessages(messages, ChatModel)
 }

@@ -42,6 +42,18 @@ type CustomerChatReply struct {
 	Message string `json:"message"`
 }
 
+type ChatHistoryExportReq struct {
+	UserNickname string `json:"user_nickname"`
+	KfName       string `json:"kf_name"`
+	ChatType     int32  `json:"chat_type"`
+	StartTime    string `json:"start_time,omitempty"`
+	EndTime      string `json:"end_time,omitempty"`
+}
+
+type ChatHistoryExportReply struct {
+	File string `json:"file"`
+}
+
 type UploadArticleHandlerReq struct {
 }
 
@@ -57,6 +69,13 @@ type DeleteCollectionHandlerReply struct {
 	Message string `json:"message"`
 }
 
+type DownloadChatHistoryReply struct {
+}
+
+type DownloadChatHistoryReq struct {
+	File string `form:"file"`
+}
+
 type SetPromptReq struct {
 	KfId   string `json:"kf_id"`
 	Prompt string `json:"prompt"`
@@ -70,11 +89,18 @@ type ListPromptReq struct {
 }
 
 type ListPromptReplyData struct {
-	Id     int64 `json:"id"`
+	Id     int64  `json:"id"`
 	KfId   string `json:"kf_id"`
 	Prompt string `json:"prompt"`
 }
 
 type ListPromptReply struct {
 	List []ListPromptReplyData `json:"list"`
+}
+
+type SyncWechatUserReq struct {
+}
+
+type SyncWechatUserReply struct {
+	Message string `json:"message"`
 }

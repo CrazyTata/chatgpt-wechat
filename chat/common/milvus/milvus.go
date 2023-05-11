@@ -55,6 +55,7 @@ func (m Milvus) search(collectionName string, embeddings []float64, dimension in
 	}
 	vector := entity.FloatVector(searchEmbedding[:])
 	// Use flat search param
+	var expr string
 	sp, err := entity.NewIndexIvfFlatSearchParam(10)
 	if err != nil {
 		return
@@ -62,7 +63,7 @@ func (m Milvus) search(collectionName string, embeddings []float64, dimension in
 	sr, err = m.client.Search(
 		m.ctx, collectionName,
 		[]string{},
-		"",
+		expr,
 		fields,
 		[]entity.Vector{vector},
 		vectorField,
@@ -77,8 +78,8 @@ func (m Milvus) clearUp(collectionName string) {
 	_ = m.client.ReleaseCollection(m.ctx, collectionName)
 }
 
-func (m Milvus) SearchFromQA(films []float64) (qas []QA) {
-	sr, err := m.search(QA_COLLECTION, films, QA_VECTOR_DIMENSION, []string{"ID", "Q", "A"}, "Vector", 4)
+func (m Milvus) SearchFromQA(films []float64, topK int) (qas []QA) {
+	sr, err := m.search(QA_COLLECTION, films, QA_VECTOR_DIMENSION, []string{"ID", "Q", "A"}, "Vector", topK)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -225,8 +226,8 @@ func (m Milvus) Save(films []Articles, collectionName string) (err error) {
 	return
 }
 
-func (m Milvus) SearchFromArticle(embeddings []float64) (articles []Articles) {
-	sr, err := m.search(ARTICLE_COLLECTION, embeddings, ARTICLE_VECTOR_DIMENSION, []string{"id", "cn_text"}, "vector", 1)
+func (m Milvus) SearchFromArticle(embeddings []float64, topK int) (articles []Articles) {
+	sr, err := m.search(ARTICLE_COLLECTION, embeddings, ARTICLE_VECTOR_DIMENSION, []string{"id", "cn_text"}, "vector", topK)
 	if err != nil {
 		fmt.Println(err.Error())
 		return

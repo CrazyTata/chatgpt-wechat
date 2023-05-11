@@ -44,6 +44,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Path:    "/prompt/list",
 					Handler: ListPromptHandler(serverCtx),
 				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/download/chat/history",
+					Handler: DownloadChatHistoryHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/tool/sync-wechat-user",
+					Handler: SyncWechatUserHandler(serverCtx),
+				},
 			}...,
 		),
 		rest.WithPrefix("/api"),
@@ -62,6 +72,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodPost,
 					Path:    "/msg/customer/push",
 					Handler: CustomerChatHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/msg/history/export",
+					Handler: ChatHistoryExportHandler(serverCtx),
 				},
 			}...,
 		),

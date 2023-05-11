@@ -56,13 +56,13 @@ func (f *UploadArticleLogic) UploadArticle(req *types.UploadArticleHandlerReq, r
 		fmt.Printf("read file error %v", err)
 		return
 	}
-	err = os.Mkdir("./temp-files", 0755)
+	err = os.MkdirAll("./temp-files/article", 0755)
 	if err != nil {
 		fmt.Printf("Cannot create a file when that file already exists %v \n ", err)
 	}
 
-	nowTime := time.Now().Format("2006-01-02 15:04:05")
-	fileName := "./temp-files/" + "article_" + nowTime + handler.Filename
+	nowTime := time.Now().Format("20060102150405")
+	fileName := "./temp-files/article/" + "article_" + nowTime + handler.Filename
 	fileHandle, err := os.Create(fileName)
 	if err != nil {
 		fmt.Printf("create file error %v", err)

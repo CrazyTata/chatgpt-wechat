@@ -30,4 +30,15 @@ type (
     CustomerChatReply {
         Message string `json:"message"`
     }
+    ChatHistoryExportReq struct {
+        UserNickname string `json:"user_nickname"`
+        KfName   string `json:"kf_name"`
+        ChatType   int32 `json:"chat_type"`
+        StartTime   string `json:"start_time,omitempty"`
+        EndTime   string `json:"end_time,omitempty"`
+    }
+
+    ChatHistoryExportReply {
+        File string `json:"file"`
+    }
 )
