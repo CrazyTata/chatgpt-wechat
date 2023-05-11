@@ -9,6 +9,8 @@ services:
       - "8888:8888"
       - "8887:8887"
       - "3213:3213"
+    volumes:
+      - ./logs/web:/var/log/chatgpt-wechat
     privileged: true
     restart: always
     networks:
