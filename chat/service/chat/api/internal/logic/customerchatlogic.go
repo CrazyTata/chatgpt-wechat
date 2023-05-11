@@ -662,24 +662,19 @@ func (l *CustomerChatLogic) InsertWechatUser(user string) {
 	}
 	if len(res) > 0 {
 		wechatInfo := res[0]
-		if promptPo != nil && promptPo.Id > 0 {
-			err = l.svcCtx.WechatUserModel.Update(ctx, &model.WechatUser{
-				Id:       promptPo.Id,
-				User:     user,
-				Nickname: wechatInfo.Nickname,
-				Avatar:   wechatInfo.Avatar,
-				Gender:   wechatInfo.Gender,
-				Unionid:  wechatInfo.Unionid,
-			})
-			return
-		}
-		_, err = l.svcCtx.WechatUserModel.Insert(ctx, &model.WechatUser{
+		wechatModel := &model.WechatUser{
 			User:     user,
 			Nickname: wechatInfo.Nickname,
 			Avatar:   wechatInfo.Avatar,
 			Gender:   wechatInfo.Gender,
 			Unionid:  wechatInfo.Unionid,
-		})
+		}
+		if promptPo != nil && promptPo.Id > 0 {
+			wechatModel.Id = promptPo.Id
+			err = l.svcCtx.WechatUserModel.Update(ctx, wechatModel)
+			return
+		}
+		_, err = l.svcCtx.WechatUserModel.Insert(ctx, wechatModel)
 	}
 	return
 }
