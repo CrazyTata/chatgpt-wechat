@@ -1,7 +1,6 @@
 package openai
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,10 +11,6 @@ import (
 
 // ChatStream 数据流式传输
 func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (string, error) {
-
-	config := c.buildConfig()
-
-	cli := copenai.NewClientWithConfig(config)
 
 	// 打印请求信息
 	logx.Info("req: ", req)
@@ -29,13 +24,12 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 			continue
 		}
 		//估算长度
-		if NumTokensFromMessages(req[len(req)-i-1:], ChatModel) < (3900 - c.MaxToken) {
+		if NumTokensFromMessages(req[len(req)-i-1:], ChatModel4) < (3900 - c.MaxToken) {
 			first = len(req) - i - 1
 		} else {
 			break
 		}
 	}
-
 	var messages []copenai.ChatCompletionMessage
 
 	if first != 0 {
@@ -55,20 +49,26 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 		c.Model = ChatModel
 	}
 	request := copenai.ChatCompletionRequest{
-		Model:       c.Model,
+		Model:       ChatModel4,
 		Messages:    messages,
 		MaxTokens:   c.MaxToken,
 		Temperature: c.Temperature,
 		TopP:        1,
 	}
-	stream, err := cli.CreateChatCompletionStream(context.Background(), request)
-
-	if err != nil {
-		fmt.Println("req chat stream params:", config)
-		return "", err
+	var stream *copenai.ChatCompletionStream
+	stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateChatCompletionStream",
+		Request:  request,
+	})
+	if err1 != nil {
+		fmt.Println(err1)
+		return "", err1
 	}
-	defer stream.Close()
-
+	stream2, ok := stream1.(*copenai.ChatCompletionStream)
+	if !ok {
+		return "", errors.New("conversion failed")
+	}
+	stream = stream2
 	messageText := ""
 	for {
 		response, err := stream.Recv()
@@ -95,14 +95,11 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 			}
 		}
 
-		logx.Info("Stream response:", response)
+		//logx.Info("Stream response:", response)
 	}
 }
 
 func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
-
-	config := c.buildConfig()
-	cli := copenai.NewClientWithConfig(config)
 
 	// 打印请求信息
 	logx.Info("req: ", req)
@@ -125,35 +122,39 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 	}
 
 	var messages []copenai.ChatCompletionMessage
-
 	if first != 0 {
 		messages = append(messages, copenai.ChatCompletionMessage{
 			Role:    system.Role,
 			Content: system.Content,
 		})
 	}
-
 	for _, message := range req[first:] {
 		messages = append(messages, copenai.ChatCompletionMessage{
 			Role:    message.Role,
 			Content: message.Content,
 		})
 	}
-	if c.Model == "" || (c.Model != ChatModel && c.Model != ChatModelNew && c.Model != ChatModel4) {
-		c.Model = ChatModel
-	}
 	request := copenai.ChatCompletionRequest{
-		Model:       c.Model,
+		Model:       ChatModel4,
 		Messages:    messages,
 		MaxTokens:   c.MaxToken,
 		Temperature: c.Temperature,
 		TopP:        1,
 	}
-	chat, err := cli.CreateChatCompletion(context.Background(), request)
-	if err != nil {
-		fmt.Println("req chat params:", config)
-		return "", err
+	var chat copenai.ChatCompletionResponse
+	chatOrigin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateChatCompletion",
+		Request:  request,
+	})
+	if err1 != nil {
+		return "", err1
 	}
+	chat1, ok := chatOrigin.(copenai.ChatCompletionResponse)
+	if !ok {
+		return "", errors.New("conversion failed")
+	}
+	chat = chat1
+
 	txt := ""
 	for _, choice := range chat.Choices {
 		txt += choice.Message.Content

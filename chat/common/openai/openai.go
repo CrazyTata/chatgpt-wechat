@@ -6,11 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
@@ -38,8 +36,8 @@ type ChatModelMessage struct {
 type ChatClient struct {
 	APIKeys     []string `json:"api_keys"`
 	APIKey      string   `json:"api_key"`
-	Origin      string  `json:"origin"`
-	Engine      string  `json:"engine"`
+	Origin      string   `json:"origin"`
+	Engine      string   `json:"engine"`
 	HttpProxy   string   `json:"http_proxy"`
 	Socks5Proxy string   `json:"socks5_proxy"`
 	Model       string   `json:"model"`
@@ -101,44 +99,6 @@ func (c *ChatClient) WithSocks5Proxy(proxyUrl string) *ChatClient {
 	return c
 }
 
-func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
-	// 打印文件信息
-	logx.Info("File: ", voiceUrl)
-	info, err := os.Stat(voiceUrl)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-
-	logx.Info("FileInfo: ", info)
-
-	req := copenai.AudioRequest{
-		Model:       copenai.Whisper1,
-		FilePath:    voiceUrl,
-		Prompt:      "使用简体中文",
-		Temperature: 0.5,
-		Language:    "zh",
-	}
-	var resp copenai.AudioResponse
-	origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-		FuncName: "CreateTranscription",
-		Request:  req,
-	})
-	if err1 != nil {
-		return "", err1
-	}
-	origin2, ok := origin.(copenai.AudioResponse)
-	if !ok {
-		return "", errors.New("conversion failed")
-	}
-	resp = origin2
-
-	// 用完就删掉
-	_ = os.Remove(voiceUrl)
-
-	return resp.Text, nil
-}
-
 func (c *ChatClient) Completion(req string) (string, error) {
 	// 打印请求信息
 	logx.Info("Completion req: ", req)
@@ -168,48 +128,6 @@ func (c *ChatClient) Completion(req string) (string, error) {
 		txt += choice.Text
 	}
 	logx.Info("Completion reps: ", txt)
-	return txt, nil
-}
-
-func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
-
-	// 打印请求信息
-	logx.Info("req: ", req)
-
-	var messages []copenai.ChatCompletionMessage
-
-	for _, message := range req {
-		messages = append(messages, copenai.ChatCompletionMessage{
-			Role:    message.Role,
-			Content: message.Content,
-		})
-	}
-	request := copenai.ChatCompletionRequest{
-		Model:       ChatModel4,
-		Messages:    messages,
-		MaxTokens:   c.MaxToken,
-		Temperature: c.Temperature,
-		TopP:        1,
-	}
-	var chat copenai.ChatCompletionResponse
-	chatOrigin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-		FuncName: "CreateChatCompletion",
-		Request:  request,
-	})
-	if err1 != nil {
-		return "", err1
-	}
-	chat1, ok := chatOrigin.(copenai.ChatCompletionResponse)
-	if !ok {
-		return "", errors.New("conversion failed")
-	}
-	chat = chat1
-
-	txt := ""
-	for _, choice := range chat.Choices {
-		txt += choice.Message.Content
-	}
-
 	return txt, nil
 }
 
@@ -244,93 +162,6 @@ func (c *ChatClient) buildConfig() copenai.ClientConfig {
 		config.BaseURL = strings.TrimRight(c.BaseHost, "/") + "/v1"
 	}
 	return config
-}
-
-// ChatStream 数据流式传输
-func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (string, error) {
-
-	// 打印请求信息
-	logx.Info("req: ", req)
-	first := 0
-	var system ChatModelMessage
-	for i, msg := range req {
-		if msg.Role == "system" {
-			system = msg
-		}
-		if i%2 == 0 {
-			continue
-		}
-		//估算长度
-		if NumTokensFromMessages(req[len(req)-i-1:], ChatModel4) < (3900 - c.MaxToken) {
-			first = len(req) - i - 1
-		} else {
-			break
-		}
-	}
-	var messages []copenai.ChatCompletionMessage
-
-	if first != 0 {
-		messages = append(messages, copenai.ChatCompletionMessage{
-			Role:    system.Role,
-			Content: system.Content,
-		})
-	}
-
-	for _, message := range req[first:] {
-		messages = append(messages, copenai.ChatCompletionMessage{
-			Role:    message.Role,
-			Content: message.Content,
-		})
-	}
-	request := copenai.ChatCompletionRequest{
-		Model:       ChatModel4,
-		Messages:    messages,
-		MaxTokens:   c.MaxToken,
-		Temperature: c.Temperature,
-		TopP:        1,
-	}
-	var stream *copenai.ChatCompletionStream
-	stream1, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
-		FuncName: "CreateChatCompletionStream",
-		Request:  request,
-	})
-	if err1 != nil {
-		fmt.Println(err1)
-		return "", err1
-	}
-	stream2, ok := stream1.(*copenai.ChatCompletionStream)
-	if !ok {
-		return "", errors.New("conversion failed")
-	}
-	stream = stream2
-	messageText := ""
-	for {
-		response, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			logx.Info("Stream finished")
-			return messageText, nil
-		}
-
-		if err != nil {
-			fmt.Printf("Stream error: %v\n", err)
-			close(channel)
-			return messageText, err
-		}
-
-		if len(response.Choices) > 0 {
-			content := response.Choices[0].Delta.Content
-			channel <- content
-			// 如果是对内容的进行补充
-			messageText += content
-			// 结算
-			if response.Choices[0].FinishReason != "" {
-				close(channel)
-				return messageText, nil
-			}
-		}
-
-		//logx.Info("Stream response:", response)
-	}
 }
 
 func (c *ChatClient) WithKey(key string) *ChatClient {

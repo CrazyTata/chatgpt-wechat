@@ -1,7 +1,8 @@
 package openai
 
 import (
-	"context"
+	"errors"
+	"fmt"
 	"os"
 
 	copenai "github.com/sashabaranov/go-openai"
@@ -13,14 +14,11 @@ type Speaker interface {
 }
 
 func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
-	config := c.buildConfig()
-	cli := copenai.NewClientWithConfig(config)
-	config.APIVersion = "2022-12-01"
-
 	// 打印文件信息
 	logx.Info("File: ", voiceUrl)
 	info, err := os.Stat(voiceUrl)
 	if err != nil {
+		fmt.Println(err)
 		return "", err
 	}
 
@@ -33,11 +31,19 @@ func (c *ChatClient) SpeakToTxt(voiceUrl string) (string, error) {
 		Temperature: 0.5,
 		Language:    "zh",
 	}
-	resp, err := cli.CreateTranscription(context.Background(), req)
-	if err != nil {
-		logx.Info("Transcription error: ", err)
-		return "", err
+	var resp copenai.AudioResponse
+	origin, err1 := c.MakeOpenAILoopRequest(&OpenAIRequest{
+		FuncName: "CreateTranscription",
+		Request:  req,
+	})
+	if err1 != nil {
+		return "", err1
 	}
+	origin2, ok := origin.(copenai.AudioResponse)
+	if !ok {
+		return "", errors.New("conversion failed")
+	}
+	resp = origin2
 
 	// 用完就删掉
 	_ = os.Remove(voiceUrl)
