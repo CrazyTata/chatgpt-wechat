@@ -3,7 +3,7 @@ package openai
 import (
 	"chat/common/redis"
 	"chat/common/util"
-	context "context"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -38,6 +38,8 @@ type ChatModelMessage struct {
 type ChatClient struct {
 	APIKeys     []string `json:"api_keys"`
 	APIKey      string   `json:"api_key"`
+	Origin      string  `json:"origin"`
+	Engine      string  `json:"engine"`
 	HttpProxy   string   `json:"http_proxy"`
 	Socks5Proxy string   `json:"socks5_proxy"`
 	Model       string   `json:"model"`
@@ -52,6 +54,18 @@ func NewChatClient(apiKeys []string) *ChatClient {
 		MaxToken:    MaxToken,
 		Temperature: Temperature,
 	}
+}
+
+// WithOrigin 设置origin
+func (c *ChatClient) WithOrigin(origin string) *ChatClient {
+	c.Origin = origin
+	return c
+}
+
+// WithEngine 设置engine
+func (c *ChatClient) WithEngine(engine string) *ChatClient {
+	c.Engine = engine
+	return c
 }
 
 func (c *ChatClient) WithModel(model string) *ChatClient {
@@ -203,6 +217,9 @@ func (c *ChatClient) buildConfig() copenai.ClientConfig {
 	c.WithOpenAIKey()
 	fmt.Printf("apikye:%s \n", c.APIKey)
 	config := copenai.DefaultConfig(c.APIKey)
+	if c.Origin == "azure" || c.Origin == "azure_ad" {
+		config = copenai.DefaultAzureConfig(c.APIKey, c.BaseHost, c.Engine)
+	}
 	if c.HttpProxy != "" {
 		proxyUrl, _ := url.Parse(c.HttpProxy)
 		transport := &http.Transport{
@@ -222,7 +239,7 @@ func (c *ChatClient) buildConfig() copenai.ClientConfig {
 		}
 	}
 
-	if c.BaseHost != "" {
+	if c.BaseHost != "" && c.Origin == "open_ai" {
 		// trim last slash
 		config.BaseURL = strings.TrimRight(c.BaseHost, "/") + "/v1"
 	}

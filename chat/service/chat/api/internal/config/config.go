@@ -62,7 +62,9 @@ type Config struct {
 	// openai 配置
 	OpenAi struct {
 		Key  []string
-		Host string `json:"host,optional,default=https://api.openai.com"`
+		Host   string `json:"host,optional,default=https://api.openai.com"`
+		Origin string `json:"origin,optional,default=open_ai"`
+		Engine string `json:"engine,optional,default="`
 	}
 
 	// http proxy 设置
@@ -97,6 +99,45 @@ type Config struct {
 	Response struct {
 		Stream bool `json:",optional,default=true"`
 	}
+
+	// Plugins 配置
+	Plugins struct {
+		Enable bool `json:",optional,default=false"`
+		List   []struct {
+			NameForHuman string `json:",optional"`
+			NameForModel string `json:",optional"`
+			DescForHuman string `json:",optional"`
+			DescModel    string `json:",optional"`
+			Auth         struct {
+				Type string `json:",optional"`
+			} `json:",optional"`
+			API struct {
+				URL string `json:",optional"`
+			}
+		} `json:",optional"`
+	}
+
+	// 语音解析与合成 后续可能会使用
+	Speaker struct {
+		Company string `json:",optional,default=openai"`
+		AliYun  struct {
+			AccessKeyId     string
+			AccessKeySecret string
+			AppKey          string
+		} `json:",optional"`
+	} `json:",optional"`
+
+	// 作图相关配置，目前只支持 StableDiffusion
+	Draw struct {
+		Enable          bool `json:",optional,default=false"`
+		StableDiffusion struct {
+			Host string `json:",optional,default=http://localhost:7890"`
+			Auth struct {
+				Username string
+				Password string
+			}
+		}
+	} `json:",optional"`
 }
 
 type Redis struct {

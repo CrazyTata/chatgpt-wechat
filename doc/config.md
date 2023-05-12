@@ -38,6 +38,8 @@ WeCom:                                              # 企业微信配置
 OpenAi:                                             # openai配置
   Key: "xxxxxxxxxxxxxxxxxxxxx"                      # openai key
   Host: "https://api.openai.com"                    # openai host （可选，使用cf进行反向代理时，修改可用）
+  Origin: "open_ai"                                 # 默认为 调用 open_ai 也支持 azure , azure_ad (可选 默认为 open_ai)
+  Engine: "deployment_name"                         # engine = "deployment_name"(当 Origin 为 azure, azure_ad  时必填)
 
 Proxy:                                              # 代理配置 （可选）
   Enable: false                                     # 是否启用代理，默认为 false（可选）
@@ -59,4 +61,24 @@ Embeddings:
 
 Response:                                           # 回复配置
   Stream: true                                    # 是否开启流式回复,自动断句推荐（可选）
+
+Plugins:
+  Enable: true
+  List:
+    - NameForHuman: "date_shell"
+      NameForModel: "date_shell"
+      DescForHuman: "这个插件可以提供日期相关的信息"
+      DescModel: "This plugin can execute shell commands used to get the date."
+      Auth:
+        Type: "none"
+      API:
+        URL: "http://192.168.1.202:8886/api/webhook"
+
+Draw:                                               # 绘画配置
+  Enable: false                                     # 是否开启绘画功能（可选）
+  StableDiffusion:                                  # 绘画配置
+    Host: "http://xx.xxx.xxx.xxx:7860"              # 绘画服务地址
+    Auth:                                           # 绘画服务认证
+      Username: "xxxxxxxx"                          # 绘画服务用户名
+      Password: "xxxxxxxx"                          # 绘画服务密码
 ```

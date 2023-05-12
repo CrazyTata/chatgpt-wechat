@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"os"
@@ -44,7 +45,41 @@ type Application struct {
 }
 
 // SendToWeComUser 发送应用消息给用户
-func SendToWeComUser(agentID int64, userID string, msg string, corpSecret string) {
+func SendToWeComUser(agentID int64, userID, msg, corpSecret string, images ...string) {
+
+	if len(images) > 0 {
+		go func() {
+			app := workwx.New(WeCom.CorpID).WithApp(corpSecret, agentID)
+			recipient := workwx.Recipient{
+				UserIDs: []string{userID},
+			}
+			for _, path := range images {
+				//生成唯一的文件名
+				fileName := uuid.New().String() + ".png"
+				buf, _ := os.ReadFile(path) //读取文件
+				media, err := workwx.NewMediaFromBuffer(fileName, buf)
+				if err != nil {
+					logx.Error("应用图片消息-读取文件失败 err:", err)
+					//发送给用户失败信息
+					err = app.SendTextMessage(&recipient, "发送图片失败", false)
+					return
+				}
+				// 上传图片
+				mediaID, err := app.UploadTempImageMedia(media)
+				if err != nil {
+					logx.Error("应用图片消息-上传图片失败 err:", err)
+					//发送给用户失败信息
+					err = app.SendTextMessage(&recipient, "发送图片失败", false)
+					return
+				}
+				err = app.SendImageMessage(&recipient, mediaID.MediaID, false)
+				if err != nil {
+					logx.Error("应用图片消息-发送失败 err:", err)
+				}
+			}
+		}()
+		return
+	}
 
 	go func() {
 		app := workwx.New(WeCom.CorpID).WithApp(corpSecret, agentID)
@@ -94,7 +129,7 @@ func DealUserLastMessageByToken(token, openKfID string) {
 		return
 	}
 
-	fmt.Println("客服消息 获取 message success", msg.NextCursor, msg.MsgList)
+	fmt.Println("客服消息 获取 message success. NextCursor:", msg.NextCursor)
 
 	_, _ = redis.Rdb.Set(context.Background(), cacheKey, msg.NextCursor, 24*30*time.Hour).Result()
 	for _, v := range msg.MsgList {
@@ -109,7 +144,7 @@ func DealUserLastMessageByToken(token, openKfID string) {
 		if v.Msgtype == "voice" && v.Origin == 3 {
 			filePath, err := DealCustomerVoiceMessageByMediaID(v.Voice.MediaId)
 			if err != nil {
-				fmt.Println(err)
+				logx.Info("音频文件读取失败", v.Voice.MediaId)
 				CustomerCallLogic(v.ExternalUserid, v.OpenKfid, v.Msgid, "音频文件读取失败:"+err.Error())
 			} else {
 				CustomerCallLogic(v.ExternalUserid, v.OpenKfid, v.Msgid, "#voice:"+filePath)
@@ -167,10 +202,9 @@ func (dummyRxMessageHandler) OnIncomingMessage(msg *workwx.RxMessage) error {
 	} else if msg.MsgType == workwx.MessageTypeVoice {
 		message, ok := msg.Voice()
 		if ok {
-			fmt.Println(message)
 			filePath, err := DealUserVoiceMessageByMediaID(message.GetMediaID(), msg.AgentID)
 			if err != nil {
-				fmt.Println(err)
+				logx.Error("应用音频文件读取失败:", err.Error())
 				realLogic("wecom", "音频文件读取失败:"+err.Error(), msg.FromUserID, msg.AgentID)
 			} else {
 				realLogic("openai", "#voice:"+filePath, msg.FromUserID, msg.AgentID)
@@ -317,7 +351,6 @@ func CustomerCallLogic(CustomerID, OpenKfID, MsgID, Msg string) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
 		logx.Error("客服消息:请求错误", err.Error())
 		return
 	}

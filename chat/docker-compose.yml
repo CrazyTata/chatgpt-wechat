@@ -11,6 +11,7 @@ services:
       - "3213:3213"
     volumes:
       - ./logs/web:/var/log/chatgpt-wechat
+      - ./service/chat/api/etc/chat-api.yaml:/etc/chat-api.yaml
     privileged: true
     restart: always
     networks:
@@ -23,6 +24,8 @@ services:
     volumes:
       - ./build/redis/redis.conf:/etc/redis/redis.conf
       - ./build/redis/data:/data
+    environment:
+      TZ: Asia/Shanghai
     networks:
       - chat_network
     restart: always

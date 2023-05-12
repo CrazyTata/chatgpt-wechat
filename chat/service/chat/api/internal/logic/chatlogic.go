@@ -4,17 +4,21 @@ import (
 	"chat/common/wecom"
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
-	"chat/common/aliocr"
+	"chat/common/ali/ocr"
 	"chat/common/milvus"
 	"chat/common/openai"
+	"chat/common/plugin"
 	"chat/common/redis"
 	"chat/service/chat/api/internal/config"
 	"chat/service/chat/api/internal/svc"
@@ -22,6 +26,7 @@ import (
 	"chat/service/chat/model"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -102,7 +107,11 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 		}
 
 		// openai client
-		c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithModel(l.model).WithBaseHost(l.baseHost)
+		c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).
+			WithModel(l.model).
+			WithBaseHost(l.baseHost).
+			WithOrigin(l.svcCtx.Config.OpenAi.Origin).
+			WithEngine(l.svcCtx.Config.OpenAi.Engine)
 		if l.svcCtx.Config.Proxy.Enable {
 			c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
 		}
@@ -192,6 +201,33 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 					if tempMessage != "" {
 						go sendToUser(req.AgentID, agentSecret, req.UserID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
 					}
+
+					// 通过插件处理数据
+					if l.svcCtx.Config.Plugins.Enable && len(l.svcCtx.Config.Plugins.List) > 0 {
+						// 通过插件处理
+						var p []plugin.Plugin
+						for _, i2 := range l.svcCtx.Config.Plugins.List {
+							p = append(p, plugin.Plugin{
+								NameForModel: i2.NameForModel,
+								DescModel:    i2.DescModel,
+								API:          i2.API,
+							})
+						}
+						pluginInfo, err := c.WithMaxToken(1000).WithTemperature(0).
+							Completion(plugin.GetPluginPromptInfo(req.MSG, p))
+						if err == nil {
+							msg, ok := plugin.RunPlugin(pluginInfo, p)
+							if ok && msg != "" {
+								// 插件处理成功，存入上下文
+								collection.Set(req.MSG+"\n"+msg+
+									"\n 你已经确认以上信息，如果信息中存在与你目前信息不一致的地方，请以上方插件提供的信息为准，比如日期... 并将其作为后续回答的依据，确认请回复 ok",
+									"ok", false,
+								)
+							}
+						}
+					}
+
+
 					for _, chat := range embeddingData {
 						collection.Set(chat.Q, chat.A, false)
 					}
@@ -373,6 +409,7 @@ func (l *ChatLogic) FactoryCommend(req *types.ChatReq) (proceed bool, err error)
 	template["#help"] = CommendHelp{}
 	template["#image"] = CommendImage{}
 	template["#voice"] = CommendVoice{}
+	template["#draw"] = CommendDraw{}
 	template["#prompt:list"] = CommendPromptList{}
 	template["#prompt:set:"] = CommendPromptSet{}
 	template["#system"] = CommendSystem{}
@@ -429,7 +466,7 @@ func (l *ChatLogic) ChatTest(req *types.ChatReq) (resp *types.ChatReply, err err
 	}, nil
 }
 
-func sendToUser(agentID int64, agentSecret, userID, msg string, config config.Config) {
+func sendToUser(agentID int64, userID, msg string, config config.Config, images ...string) {
 	// 确认多应用模式是否开启
 	corpSecret := config.WeCom.DefaultAgentSecret
 	// 兼容性调整 取 DefaultAgentSecret 作为默认值 兼容老版本 CorpSecret
@@ -439,8 +476,7 @@ func sendToUser(agentID int64, agentSecret, userID, msg string, config config.Co
 	if agentSecret != "" {
 		corpSecret = agentSecret
 	}
-
-	wecom.SendToWeComUser(agentID, userID, msg, corpSecret)
+	wecom.SendToWeComUser(agentID, userID, msg, corpSecret, images...)
 }
 
 type TemplateData interface {
@@ -463,7 +499,7 @@ type CommendHelp struct{}
 
 func (p CommendHelp) exec(l *ChatLogic, req *types.ChatReq) bool {
 	tips := fmt.Sprintf(
-		"支持指令：\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+		"支持指令：\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"基础模块🕹️\n\n#help 查看所有指令",
 		"#system 查看当前对话的系统信息",
 		"#clear 清空当前会话的数据\n",
@@ -477,6 +513,8 @@ func (p CommendHelp) exec(l *ChatLogic, req *types.ChatReq) bool {
 		"#session:list  查看所有会话",
 		"#session:clear 清空所有会话",
 		"#session:exchange:xxx 切换指定会话",
+		"\n绘图🎨\n",
+		"#draw:xxx 按照指定 prompt 进行绘画",
 	)
 	sendToUser(req.AgentID, l.agentSecret, req.UserID, tips, l.svcCtx.Config)
 	return false
@@ -599,7 +637,7 @@ func (p CommendImage) exec(l *ChatLogic, req *types.ChatReq) bool {
 		sendToUser(req.AgentID, l.agentSecret, req.UserID, "目前只支持阿里OCR", l.svcCtx.Config)
 		return false
 	}
-	ocrCli, _err := aliocr.CreateClient(&l.svcCtx.Config.OCR.AliYun.AccessKeyId, &l.svcCtx.Config.OCR.AliYun.AccessKeySecret)
+	ocrCli, _err := ocr.CreateClient(&l.svcCtx.Config.OCR.AliYun.AccessKeyId, &l.svcCtx.Config.OCR.AliYun.AccessKeySecret)
 	if _err != nil {
 		// 创建失败
 		sendToUser(req.AgentID, l.agentSecret, req.UserID, "图片识别客户端创建失败失败:"+_err.Error(), l.svcCtx.Config)
@@ -607,7 +645,7 @@ func (p CommendImage) exec(l *ChatLogic, req *types.ChatReq) bool {
 	}
 
 	// 进行图片识别
-	txt, err := aliocr.OcrImage2Txt(msg, ocrCli)
+	txt, err := ocr.Image2Txt(msg, ocrCli)
 	if err != nil {
 		sendToUser(req.AgentID, l.agentSecret, req.UserID, "图片识别失败:"+err.Error(), l.svcCtx.Config)
 		return false
@@ -689,16 +727,44 @@ func (p CommendVoice) exec(l *ChatLogic, req *types.ChatReq) bool {
 		sendToUser(req.AgentID, l.agentSecret, req.UserID, "未能读取到音频信息", l.svcCtx.Config)
 		return false
 	}
-	fmt.Println(msg)
 
-	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key)
+	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).
+		WithModel(l.model).
+		WithBaseHost(l.svcCtx.Config.OpenAi.Host).
+		WithOrigin(l.svcCtx.Config.OpenAi.Origin).
+		WithEngine(l.svcCtx.Config.OpenAi.Engine)
 
 	if l.svcCtx.Config.Proxy.Enable {
 		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
 	}
 
-	txt, err := c.SpeakToTxt(msg)
-
+	var cli openai.Speaker
+	if l.svcCtx.Config.Speaker.Company == "" {
+		l.svcCtx.Config.Speaker.Company = "openai"
+	}
+	switch l.svcCtx.Config.Speaker.Company {
+	case "openai":
+		logx.Info("使用openai音频转换")
+		cli = c
+	case "ali":
+		//logx.Info("使用阿里云音频转换")
+		//s, err := voice.NewSpeakClient(
+		//	l.svcCtx.Config.Speaker.AliYun.AccessKeyId,
+		//	l.svcCtx.Config.Speaker.AliYun.AccessKeySecret,
+		//	l.svcCtx.Config.Speaker.AliYun.AppKey,
+		//)
+		//if err != nil {
+		//	sendToUser(req.AgentID, req.UserID, "阿里云音频转换初始化失败:"+err.Error(), l.svcCtx.Config)
+		//	return false
+		//}
+		//msg = strings.Replace(msg, ".mp3", ".amr", -1)
+		//cli = s
+	default:
+		sendToUser(req.AgentID, req.UserID, "系统错误:未知的音频转换服务商", l.svcCtx.Config)
+		return false
+	}
+	fmt.Println(cli)
+	txt, err := cli.SpeakToTxt(msg)
 	if txt == "" {
 		sendToUser(req.AgentID, l.agentSecret, req.UserID, "音频信息转换错误:"+err.Error(), l.svcCtx.Config)
 		return false
@@ -754,6 +820,107 @@ func (p CommendSession) exec(l *ChatLogic, req *types.ChatReq) bool {
 		return false
 	}
 
+	sendToUser(req.AgentID, l.agentSecret, req.UserID, "未知的命令，您可以通过 \n#help \n查看帮助", l.svcCtx.Config)
+	return false
+}
+
+type CommendDraw struct{}
+
+func (p CommendDraw) exec(l *ChatLogic, req *types.ChatReq) bool {
+	if strings.HasPrefix(req.MSG, "#draw:") {
+		prompt := strings.Replace(req.MSG, "#draw:", "", -1)
+		if l.svcCtx.Config.Draw.Enable {
+			host := l.svcCtx.Config.Draw.StableDiffusion.Host
+			url := host + "/sdapi/v1/txt2img"
+			reqPayload := map[string]interface{}{
+				"prompt": prompt,
+				"steps":  20,
+			}
+			tokenStr := l.svcCtx.Config.Draw.StableDiffusion.Auth.Username + ":" + l.svcCtx.Config.Draw.StableDiffusion.Auth.Password
+			encodedToken := base64.StdEncoding.EncodeToString([]byte(tokenStr))
+
+			client := &http.Client{}
+			body, _ := json.Marshal(reqPayload)
+			drawReq, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(body)))
+			if err != nil {
+				logx.Info("draw request client build fail", err)
+				sendToUser(req.AgentID, l.agentSecret, req.UserID, "构建绘画请求失败，请重新尝试~", l.svcCtx.Config)
+				return false
+			}
+			logx.Info("draw request client build success")
+			drawReq.Header.Add("Content-Type", "application/json")
+			drawReq.Header.Add("Authorization", "Basic "+encodedToken)
+
+			sendToUser(req.AgentID, l.agentSecret, req.UserID, "正在绘画中...", l.svcCtx.Config)
+
+			res, err := client.Do(drawReq)
+			if err != nil {
+				logx.Info("draw request fail", err)
+				sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求失败，请重新尝试~", l.svcCtx.Config)
+				return false
+			}
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(res.Body)
+
+			resBody, err := io.ReadAll(res.Body)
+			if err != nil {
+				logx.Info("draw request fail", err)
+				sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求响应失败，请重新尝试~", l.svcCtx.Config)
+				return false
+			}
+
+			var resPayload map[string]interface{}
+			err = json.Unmarshal(resBody, &resPayload)
+			if err != nil {
+				logx.Info("draw request fail", err)
+				sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求响应解析失败，请重新尝试~", l.svcCtx.Config)
+				return false
+			}
+			images := resPayload["images"].([]interface{})
+			for _, image := range images {
+				s := image.(string)
+				if err != nil {
+					logx.Info("draw request fail", err)
+					sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求响应解析失败，请重新尝试~", l.svcCtx.Config)
+					return false
+				}
+				// 将解密后的信息写入到本地
+				imageBase64 := strings.Split(s, ",")[0]
+				decodeBytes, err := base64.StdEncoding.DecodeString(imageBase64)
+				if err != nil {
+					logx.Info("draw request fail", err)
+					sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求响应解析失败，请重新尝试~", l.svcCtx.Config)
+					return false
+				}
+
+				// 判断目录是否存在
+				_, err = os.Stat("/tmp/image")
+				if err != nil {
+					err := os.MkdirAll("/tmp/image", os.ModePerm)
+					if err != nil {
+						fmt.Println("mkdir err:", err)
+						sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求响应解析失败，请重新尝试~", l.svcCtx.Config)
+						return false
+					}
+				}
+
+				path := fmt.Sprintf("/tmp/image/%s.png", uuid.New().String())
+
+				err = os.WriteFile(path, decodeBytes, os.ModePerm)
+
+				if err != nil {
+					logx.Info("draw save fail", err)
+					sendToUser(req.AgentID, l.agentSecret, req.UserID, "绘画请求响应解析失败，请重新尝试~", l.svcCtx.Config)
+					return false
+				}
+
+				// 再将 image 信息发送到用户
+				sendToUser(req.AgentID, l.agentSecret, req.UserID, "", l.svcCtx.Config, path)
+				return false
+			}
+		}
+	}
 	sendToUser(req.AgentID, l.agentSecret, req.UserID, "未知的命令，您可以通过 \n#help \n查看帮助", l.svcCtx.Config)
 	return false
 }
