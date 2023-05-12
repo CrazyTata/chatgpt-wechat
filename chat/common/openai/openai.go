@@ -282,7 +282,7 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 			c.WithNextOpenAIKey()
 		}
 		config := c.buildConfig()
-
+		config.APIVersion = "2022-12-01"
 		cli := copenai.NewClientWithConfig(config)
 		var result interface{}
 		switch req.FuncName {
