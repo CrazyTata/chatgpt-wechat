@@ -7,6 +7,7 @@ import (
 	"golang.org/x/text/transform"
 	"io"
 	"log"
+	"net"
 	"os"
 )
 
@@ -43,4 +44,49 @@ func GetCSVDataByPath(filename string) ([][]string, error) {
 		result = append(result, record)
 	}
 	return result, nil
+}
+
+func GetLocalIP() (ipv4, ipv6 net.IP, err error) {
+	// 获取所有网络接口列表
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 遍历每个网络接口
+	for _, iface := range ifaces {
+		// 排除无效的接口
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		// 获取接口的地址列表
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// 遍历每个地址，找到 IP 地址
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			// 排除非 IPv4 和 IPv6 地址
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			if ip.To4() != nil {
+				ipv4 = ip
+			} else {
+				ipv6 = ip
+			}
+		}
+	}
+
+	return ipv4, ipv6, nil
 }

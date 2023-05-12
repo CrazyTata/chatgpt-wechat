@@ -227,7 +227,6 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 						}
 					}
 
-
 					for _, chat := range embeddingData {
 						collection.Set(chat.Q, chat.A, false)
 					}
@@ -466,7 +465,7 @@ func (l *ChatLogic) ChatTest(req *types.ChatReq) (resp *types.ChatReply, err err
 	}, nil
 }
 
-func sendToUser(agentID int64, userID, msg string, config config.Config, images ...string) {
+func sendToUser(agentID int64, agentSecret, userID, msg string, config config.Config, images ...string) {
 	// 确认多应用模式是否开启
 	corpSecret := config.WeCom.DefaultAgentSecret
 	// 兼容性调整 取 DefaultAgentSecret 作为默认值 兼容老版本 CorpSecret
@@ -760,7 +759,7 @@ func (p CommendVoice) exec(l *ChatLogic, req *types.ChatReq) bool {
 		//msg = strings.Replace(msg, ".mp3", ".amr", -1)
 		//cli = s
 	default:
-		sendToUser(req.AgentID, req.UserID, "系统错误:未知的音频转换服务商", l.svcCtx.Config)
+		sendToUser(req.AgentID, l.agentSecret, req.UserID, "系统错误:未知的音频转换服务商", l.svcCtx.Config)
 		return false
 	}
 	fmt.Println(cli)
