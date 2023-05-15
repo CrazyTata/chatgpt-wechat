@@ -50,9 +50,6 @@ func (m *defaultUserModel) FindOneByQuery(ctx context.Context, rowBuilder squirr
 	var resp User
 	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
 	if err != nil {
-		if err == sqlx.ErrNotFound {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return &resp, nil

@@ -92,7 +92,7 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 				Where(squirrel.Eq{"agent_id": req.AgentID}).
 				OrderBy("id desc"),
 		)
-		if configErr == nil && configCollection.Id > 0 {
+		if configErr == nil && configCollection != nil && configCollection.Id > 0 {
 			l.basePrompt = configCollection.Prompt
 			l.model = configCollection.Model
 		}
