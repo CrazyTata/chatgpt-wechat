@@ -379,7 +379,6 @@ func (p CustomerCommendVoice) customerExec(l *CustomerChatLogic, req *types.Cust
 	return true
 }
 
-
 type CustomerCommendClear struct{}
 
 func (p CustomerCommendClear) customerExec(l *CustomerChatLogic, req *types.CustomerChatReq) bool {
@@ -396,11 +395,15 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	l.setModelNameV2().setBasePrompt().setBaseHost()
 
 	// 确认消息没有被处理过
-	_, err = l.svcCtx.ChatModel.FindOneByQuery(context.Background(),
+	originInfo, err := l.svcCtx.ChatModel.FindOneByQuery(context.Background(),
 		l.svcCtx.ChatModel.RowBuilder().Where(squirrel.Eq{"message_id": req.MsgID}).Where(squirrel.Eq{"user": req.CustomerID}),
 	)
 	// 消息已处理
-	if err == nil {
+	if err != nil {
+		return &types.CustomerChatReply{}, err
+	}
+
+	if originInfo != nil && originInfo.Id > 0 {
 		return &types.CustomerChatReply{
 			Message: "ok",
 		}, nil
