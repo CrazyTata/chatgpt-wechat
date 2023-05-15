@@ -40,12 +40,13 @@ func (m *defaultApplicationConfigModel) FindOneByQuery(ctx context.Context, rowB
 
 	var resp ApplicationConfig
 	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
-	switch err {
-	case nil:
-		return &resp, nil
-	default:
+	if err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
+	return &resp, nil
 }
 
 // export logic

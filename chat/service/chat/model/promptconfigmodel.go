@@ -49,12 +49,13 @@ func (m *defaultPromptConfigModel) FindOneByQuery(ctx context.Context, rowBuilde
 
 	var resp PromptConfig
 	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
-	switch err {
-	case nil:
-		return &resp, nil
-	default:
+	if err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
+	return &resp, nil
 }
 
 func (m *defaultPromptConfigModel) FindSum(ctx context.Context, sumBuilder squirrel.SelectBuilder) (float64, error) {

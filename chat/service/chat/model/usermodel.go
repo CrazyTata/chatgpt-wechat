@@ -49,12 +49,13 @@ func (m *defaultUserModel) FindOneByQuery(ctx context.Context, rowBuilder squirr
 
 	var resp User
 	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
-	switch err {
-	case nil:
-		return &resp, nil
-	default:
+	if err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
+	return &resp, nil
 }
 
 func (m *defaultUserModel) FindSum(ctx context.Context, sumBuilder squirrel.SelectBuilder) (float64, error) {
