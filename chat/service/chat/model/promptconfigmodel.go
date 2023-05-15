@@ -84,12 +84,13 @@ func (m *defaultPromptConfigModel) FindCount(ctx context.Context, countBuilder s
 
 	var resp int64
 	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
-	switch err {
-	case nil:
-		return resp, nil
-	default:
+	if err != nil {
+		if err == sqlx.ErrNotFound {
+			return 0, nil
+		}
 		return 0, err
 	}
+	return resp, nil
 }
 
 func (m *defaultPromptConfigModel) FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*PromptConfig, error) {

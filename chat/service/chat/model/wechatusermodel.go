@@ -82,12 +82,13 @@ func (m *defaultWechatUserModel) FindCount(ctx context.Context, countBuilder squ
 
 	var resp int64
 	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
-	switch err {
-	case nil:
-		return resp, nil
-	default:
+	if err != nil {
+		if err == sqlx.ErrNotFound {
+			return 0, nil
+		}
 		return 0, err
 	}
+	return resp, nil
 }
 
 func (m *defaultWechatUserModel) CountBuilder(field string) squirrel.SelectBuilder {
