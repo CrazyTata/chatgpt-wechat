@@ -53,7 +53,7 @@ func (l *AutoChatLogic) AutoChat(req *types.DoGenerateActiveChatContentRequest) 
 		err = l.CustomerChat(userId, kfId, req.ContextMessage, req.Prompt, node.Generate().String())
 
 	}
-	return
+	return &types.DoGenerateActiveChatContentReply{Message: "ok"}, nil
 }
 
 func (l *AutoChatLogic) CustomerChat(customerID, openKfID, message, newPromote, messageID string) (err error) {
