@@ -264,6 +264,15 @@ func (c *UserContext) GetChatSummary() []ChatModelMessage {
 	return summary
 }
 
+// GetOtherChatSummary 获取另外一个对话摘要
+func (c *UserContext) GetOtherChatSummary(summary []ChatModelMessage, newPrompt string) []ChatModelMessage {
+	summary = append(summary, ChatModelMessage{
+		Role:    "system",
+		Content: newPrompt,
+	})
+	return summary
+}
+
 func (c *UserContext) getCompletionSummary() string {
 	basePrompt := ""
 	l := len(c.Summary)

@@ -41,4 +41,30 @@ type (
     ChatHistoryExportReply {
         File string `json:"file"`
     }
+
+    GetLastChatInfoRequest struct {
+        UserNickname string `json:"user_nickname"`
+        KfName   string `json:"kf_name"`
+        ChatType   int32 `json:"chat_type"`
+    }
+
+    GetLastChatInfoReply {
+        ReqContent string `json:"req_content"`
+        ResContent string `json:"res_content"`
+        CreatedTime string `json:"created_time"`
+    }
+
+    DoGenerateActiveChatContentRequest struct {
+        UserNickname string `json:"user_nickname"`
+        KfName   string `json:"kf_name"`
+        Prompt   string `json:"prompt"`
+        ContextMessage   string `json:"context_message"`
+        ChatType   int32 `json:"chat_type"`
+    }
+
+    DoGenerateActiveChatContentReply {
+        Message string `json:"message"`
+    }
+
+
 )

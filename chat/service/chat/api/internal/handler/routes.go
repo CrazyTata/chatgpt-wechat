@@ -75,8 +75,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				},
 				{
 					Method:  http.MethodPost,
-					Path:    "/msg/history/export",
-					Handler: ChatHistoryExportHandler(serverCtx),
+					Path:    "/msg/export",
+					Handler: ChatRecordHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/msg/last-chat-info",
+					Handler: GetLastChatRecordHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/msg/generate-chat",
+					Handler: AutoChatHandler(serverCtx),
 				},
 			}...,
 		),

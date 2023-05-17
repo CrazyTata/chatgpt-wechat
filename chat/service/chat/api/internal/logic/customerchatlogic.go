@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"chat/common/util"
 	"context"
 	"crypto/md5"
 	"encoding/json"
@@ -437,8 +438,6 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 	customerConfigPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
 		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
 	)
-	fmt.Println(customerConfigPo.Prompt)
-
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +467,7 @@ func (l *CustomerChatLogic) CustomerChatV2(req *types.CustomerChatReq) (resp *ty
 		formattedTime := time.Now().Add(-duration).Format("2006-01-02 15:04:05")
 		clearStatus, err1 := l.CheckClearContext(context.Background(), req.OpenKfID, req.CustomerID, formattedTime)
 		if err1 != nil {
-			fmt.Println(err1.Error())
+			util.Error(err1.Error())
 			return nil, err1
 		}
 		if clearStatus {

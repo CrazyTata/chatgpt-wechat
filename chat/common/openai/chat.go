@@ -11,15 +11,9 @@ import (
 
 // ChatStream 数据流式传输
 func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (string, error) {
-
-	// 打印请求信息
-	logx.Info("req: ", req)
 	first := 0
-	var system ChatModelMessage
-	for i, msg := range req {
-		if msg.Role == "system" {
-			system = msg
-		}
+	for i, _ := range req {
+
 		if i%2 == 0 {
 			continue
 		}
@@ -33,10 +27,7 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 	var messages []copenai.ChatCompletionMessage
 
 	if first != 0 {
-		messages = append(messages, copenai.ChatCompletionMessage{
-			Role:    system.Role,
-			Content: system.Content,
-		})
+		messages = c.DealMultiplePrompt(req)
 	}
 
 	for _, message := range req[first:] {
@@ -105,11 +96,8 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 	logx.Info("req: ", req)
 
 	first := 0
-	var system ChatModelMessage
-	for i, msg := range req {
-		if msg.Role == "system" {
-			system = msg
-		}
+	for i, _ := range req {
+
 		if i%2 == 0 {
 			continue
 		}
@@ -123,10 +111,7 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 
 	var messages []copenai.ChatCompletionMessage
 	if first != 0 {
-		messages = append(messages, copenai.ChatCompletionMessage{
-			Role:    system.Role,
-			Content: system.Content,
-		})
+		messages = c.DealMultiplePrompt(req)
 	}
 	for _, message := range req[first:] {
 		messages = append(messages, copenai.ChatCompletionMessage{
@@ -161,4 +146,18 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 	}
 
 	return txt, nil
+}
+
+func (c *ChatClient) DealMultiplePrompt(req []ChatModelMessage) (res []copenai.ChatCompletionMessage) {
+
+	for _, msg := range req {
+		if msg.Role == "system" {
+			res = append(res, copenai.ChatCompletionMessage{
+				Role:    msg.Role,
+				Content: msg.Content,
+			})
+		}
+	}
+
+	return
 }

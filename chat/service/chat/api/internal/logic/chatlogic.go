@@ -60,7 +60,6 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 	applicationConfigPo, err := l.svcCtx.ApplicationConfigModel.FindOneByQuery(context.Background(),
 		l.svcCtx.ApplicationConfigModel.RowBuilder().Where(squirrel.Eq{"agent_id": req.AgentID}),
 	)
-	fmt.Println(applicationConfigPo)
 
 	if err != nil {
 		return nil, err

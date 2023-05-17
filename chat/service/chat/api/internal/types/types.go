@@ -54,6 +54,30 @@ type ChatHistoryExportReply struct {
 	File string `json:"file"`
 }
 
+type GetLastChatInfoRequest struct {
+	UserNickname string `json:"user_nickname"`
+	KfName       string `json:"kf_name"`
+	ChatType     int32  `json:"chat_type"`
+}
+
+type GetLastChatInfoReply struct {
+	ReqContent  string `json:"req_content"`
+	ResContent  string `json:"res_content"`
+	CreatedTime string `json:"created_time"`
+}
+
+type DoGenerateActiveChatContentRequest struct {
+	UserNickname   string `json:"user_nickname"`
+	KfName         string `json:"kf_name"`
+	Prompt         string `json:"prompt"`
+	ContextMessage string `json:"context_message"`
+	ChatType       int32  `json:"chat_type"`
+}
+
+type DoGenerateActiveChatContentReply struct {
+	Message string `json:"message"`
+}
+
 type UploadArticleHandlerReq struct {
 }
 
