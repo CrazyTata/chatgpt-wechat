@@ -9,6 +9,14 @@ import (
 
 var _ ScriptModel = (*customScriptModel)(nil)
 
+const (
+	ScriptDeleted    = 1
+	ScriptNotDeleted = 0
+
+	ScriptEnable  = 1
+	ScriptDisable = 0
+)
+
 type (
 	// ScriptModel is an interface to be customized, add more methods here,
 	// and implement the added methods in customScriptModel.
@@ -51,7 +59,6 @@ func (m *defaultScriptModel) FindOneByQuery(ctx context.Context, rowBuilder squi
 	return &resp, nil
 }
 
-// export logic
 func (m *defaultScriptModel) RowBuilder() squirrel.SelectBuilder {
 	return squirrel.Select(scriptRows).From(m.table)
 }

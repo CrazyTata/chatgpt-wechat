@@ -19,7 +19,7 @@ info(
 )
 service script-api {
 	@handler ScriptHandler
-	get /crontab/deal-script(ScriptRequest) returns (ScriptResponse)
+	get /crontab/run-script(ScriptRequest) returns (ScriptResponse)
 	
 	@handler UploadScriptHandler
 	post /upload/script (UploadScriptRequest) returns (UploadScriptResponse)

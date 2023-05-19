@@ -3,14 +3,12 @@ package logic
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/Masterminds/squirrel"
 	"net/http"
 	"os"
 	"script/script/internal/svc"
 	"script/script/internal/types"
 	"script/script/internal/vars"
-	"script/script/model"
+	"script/script/repository/script"
 	"script/script/util"
 	"strings"
 
@@ -19,15 +17,17 @@ import (
 
 type UploadScriptLogic struct {
 	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
+	ctx              context.Context
+	svcCtx           *svc.ServiceContext
+	ScriptRepository *script.ScriptRepository
 }
 
 func NewUploadScriptLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadScriptLogic {
 	return &UploadScriptLogic{
-		Logger: logx.WithContext(ctx),
-		ctx:    ctx,
-		svcCtx: svcCtx,
+		Logger:           logx.WithContext(ctx),
+		ctx:              ctx,
+		svcCtx:           svcCtx,
+		ScriptRepository: script.NewScriptRepository(ctx, svcCtx),
 	}
 }
 
@@ -82,7 +82,7 @@ func (l *UploadScriptLogic) UploadScript(req *types.UploadScriptRequest, r *http
 
 	//save data
 	// 再去插入数据
-	err = l.InsertScript(name, fileName)
+	err = l.ScriptRepository.InsertScript(name, fileName)
 	if err != nil {
 		util.Error("insert file error err:" + err.Error())
 		return
@@ -91,32 +91,4 @@ func (l *UploadScriptLogic) UploadScript(req *types.UploadScriptRequest, r *http
 	return &types.UploadScriptResponse{
 		Message: "ok",
 	}, nil
-}
-
-func (l *UploadScriptLogic) InsertScript(name, path string) (err error) {
-	ctx := context.Background()
-	if name == "" {
-		return
-	}
-	//先查询下
-	scriptPo, err := l.svcCtx.ScriptModel.FindOneByQuery(ctx,
-		l.svcCtx.ScriptModel.RowBuilder().Where(squirrel.Eq{"name": name}),
-	)
-	if err != nil {
-		fmt.Printf("InsertWechatUser FindOneByQuery error: %v", err)
-		return
-	}
-
-	scriptModel := &model.Script{
-		Name: name,
-		Path: path,
-	}
-	if scriptPo != nil && scriptPo.Id > 0 {
-		scriptModel.Id = scriptPo.Id
-		err = l.svcCtx.ScriptModel.Update(ctx, scriptModel)
-		return
-	}
-	_, err = l.svcCtx.ScriptModel.Insert(ctx, scriptModel)
-
-	return
 }

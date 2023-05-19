@@ -10,16 +10,18 @@ import (
 )
 
 type ServiceContext struct {
-	Config      config.Config
-	AccessLog   rest.Middleware
-	ScriptModel model.ScriptModel
+	Config         config.Config
+	AccessLog      rest.Middleware
+	ScriptModel    model.ScriptModel
+	ScriptLogModel model.ScriptLogModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	conn := sqlx.NewMysql(c.Mysql.DataSource)
 	return &ServiceContext{
-		Config:      c,
-		AccessLog:   middleware.NewAccessLogMiddleware().Handle,
-		ScriptModel: model.NewScriptModel(conn, c.RedisCache),
+		Config:         c,
+		AccessLog:      middleware.NewAccessLogMiddleware().Handle,
+		ScriptModel:    model.NewScriptModel(conn, c.RedisCache),
+		ScriptLogModel: model.NewScriptLogModel(conn, c.RedisCache),
 	}
 }
