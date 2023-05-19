@@ -57,11 +57,11 @@ func (l *SyncWechatUserLogic) HandleSyncWechatUser(page int64) {
 	}
 	if len(pos) > 0 {
 		var users []string
-		posItems := make(map[string]int64)
+		posItems := make(map[string]*model.WechatUser)
 
 		for _, v := range pos {
 			users = append(users, v.User)
-			posItems[v.User] = v.Id
+			posItems[v.User] = v
 		}
 		originWechatInfo, err := wecom.GetCustomer(users)
 		if err != nil {
@@ -71,14 +71,13 @@ func (l *SyncWechatUserLogic) HandleSyncWechatUser(page int64) {
 
 		for _, wechat := range originWechatInfo {
 			if wechat.Nickname != "" {
-				err = l.svcCtx.WechatUserModel.Update(context.Background(), &model.WechatUser{
-					Id:       posItems[wechat.ExternalUserID],
-					User:     wechat.ExternalUserID,
-					Nickname: wechat.Nickname,
-					Avatar:   wechat.Avatar,
-					Gender:   wechat.Gender,
-					Unionid:  wechat.Unionid,
-				})
+				newModel := posItems[wechat.ExternalUserID]
+				newModel.User = wechat.ExternalUserID
+				newModel.Nickname = wechat.Nickname
+				newModel.Avatar = wechat.Avatar
+				newModel.Gender = wechat.Gender
+				newModel.Unionid = wechat.Unionid
+				err = l.svcCtx.WechatUserModel.Update(context.Background(), newModel)
 				if err != nil {
 					return
 				}

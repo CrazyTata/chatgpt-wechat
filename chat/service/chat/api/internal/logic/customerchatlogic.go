@@ -479,8 +479,13 @@ func (l *CustomerChatLogic) InsertWechatUser(user string) {
 			Unionid:  wechatInfo.Unionid,
 		}
 		if wechatUserPo != nil && wechatUserPo.Id > 0 {
-			wechatModel.Id = wechatUserPo.Id
-			err = l.svcCtx.WechatUserModel.Update(ctx, wechatModel)
+			wechatUserPo.User = user
+			wechatUserPo.Nickname = wechatInfo.Nickname
+			wechatUserPo.Avatar = wechatInfo.Avatar
+			wechatUserPo.Gender = wechatInfo.Gender
+			wechatUserPo.Unionid = wechatInfo.Unionid
+			wechatUserPo.UpdatedAt = time.Now()
+			err = l.svcCtx.WechatUserModel.Update(ctx, wechatUserPo)
 			return
 		}
 		_, err = l.svcCtx.WechatUserModel.Insert(ctx, wechatModel)
