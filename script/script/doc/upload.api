@@ -1,0 +1,18 @@
+syntax = "v1"
+
+info(
+    title: "upload file"
+    desc: "upload file"
+    author: "tata"
+    email: ""
+    version: "v1"
+)
+
+type (
+    UploadScriptRequest struct {
+    }
+
+    UploadScriptResponse {
+        Message string `json:"message"`
+    }
+)

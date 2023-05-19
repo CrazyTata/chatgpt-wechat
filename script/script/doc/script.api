@@ -1,0 +1,20 @@
+syntax = "v1"
+
+info(
+    title: "script service api"
+    desc: "script service api desc"
+    author: "type author here"
+    email: "type email here"
+    version: "v1"
+)
+
+type (
+    ScriptResponse {
+        Message string `json:"message"`
+    }
+
+    ScriptRequest {
+
+    }
+
+)

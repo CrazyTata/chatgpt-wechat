@@ -2,6 +2,7 @@ package logic
 
 import (
 	"chat/common/openai"
+	"chat/common/util"
 	"chat/common/wecom"
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
@@ -152,6 +153,7 @@ func (l *AutoChatLogic) CustomerChat(customerID, openKfID, message, newPromote, 
 		messageText, err := c.Chat(prompts)
 
 		if err != nil {
+			util.Error("AutoChatLogic:CustomerChat:error:" + err.Error())
 			wecom.SendCustomerChatMessage(openKfID, customerID, "系统错误:"+err.Error())
 			return
 		}
@@ -233,7 +235,8 @@ func (l *AutoChatLogic) Chat(userId, message, newPromote string, agentId int64) 
 						if strings.Contains(errInfo, "maximum context length") {
 							errInfo += "\n 请使用 #clear 清理所有上下文"
 						}
-						sendToUser(agentId, agentSecret, userId, "系统错误:"+err.Error(), l.svcCtx.Config)
+						util.Error("AutoChatLogic:chat:error:" + errInfo)
+						sendToUser(agentId, agentSecret, userId, "系统错误:"+errInfo, l.svcCtx.Config)
 						return
 					}
 					collection.Set("", messageText, true)
@@ -278,6 +281,7 @@ func (l *AutoChatLogic) Chat(userId, message, newPromote string, agentId int64) 
 			if strings.Contains(errInfo, "maximum context length") {
 				errInfo += "\n 请使用 #clear 清理所有上下文"
 			}
+			util.Error("AutoChatLogic:chat:error:" + errInfo)
 			sendToUser(agentId, agentSecret, userId, "系统错误:"+errInfo, l.svcCtx.Config)
 			return
 		}

@@ -1,0 +1,27 @@
+syntax = "v1"
+
+import (
+	"doc/script.api"
+	"doc/upload.api"
+)
+
+info(
+	title: "script service api"
+	desc: "script service api desc"
+	author: "type author here"
+	email: "type email here"
+	version: "v1"
+)
+
+@server(
+	middleware: AccessLog // 路由中间件声明
+	prefix: api
+)
+service script-api {
+	@handler ScriptHandler
+	get /crontab/deal-script(ScriptRequest) returns (ScriptResponse)
+	
+	@handler UploadScriptHandler
+	post /upload/script (UploadScriptRequest) returns (UploadScriptResponse)
+	
+}
