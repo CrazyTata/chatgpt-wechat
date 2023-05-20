@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -62,4 +63,9 @@ func RenameFileIfExists(filePath string) (string, error) {
 	}
 
 	return newFilePath, nil
+}
+
+func InArray(slice []string, element string) bool {
+	i := sort.SearchStrings(slice, element)
+	return i < len(slice) && slice[i] == element
 }

@@ -36,8 +36,19 @@ func (l *UploadScriptLogic) UploadScript(req *types.UploadScriptRequest, r *http
 	r.ParseMultipartForm(1000)
 	// 获取name字段值
 	name := r.FormValue("name")
+	scriptType := r.FormValue("script_type")
 	if name == "" {
 		err = errors.New("file name not exist")
+		return
+	}
+	if scriptType == "" {
+		err = errors.New("script type not exist")
+		return
+	}
+	AllowScriptType := []string{"python3"}
+
+	if !util.InArray(AllowScriptType, scriptType) {
+		err = errors.New("script type is not allow")
 		return
 	}
 	file, handler, err := r.FormFile("file")
@@ -82,7 +93,7 @@ func (l *UploadScriptLogic) UploadScript(req *types.UploadScriptRequest, r *http
 
 	//save data
 	// 再去插入数据
-	err = l.ScriptRepository.InsertScript(name, fileName)
+	err = l.ScriptRepository.InsertScript(name, fileName, scriptType)
 	if err != nil {
 		util.Error("insert file error err:" + err.Error())
 		return

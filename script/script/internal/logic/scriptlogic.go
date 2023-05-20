@@ -48,7 +48,7 @@ func (l *ScriptLogic) Script(req *types.ScriptRequest) (resp *types.ScriptRespon
 	if len(scriptPos) > 0 {
 		for _, r := range scriptPos {
 			r := r
-			l.Run(r.Id, r.Path)
+			l.Run(r.Id, r.Path, r.ScriptType)
 		}
 	}
 	return &types.ScriptResponse{
@@ -56,18 +56,16 @@ func (l *ScriptLogic) Script(req *types.ScriptRequest) (resp *types.ScriptRespon
 	}, nil
 }
 
-func (l *ScriptLogic) Run(scriptId int64, path string) {
+func (l *ScriptLogic) Run(scriptId int64, path, scriptType string) {
 	//判断是不是有脚本正在执行的，如果有就先不处理
 	where := fmt.Sprintf("script_id = %d and status = %d and created_at > '%s'", scriptId, model.ScriptLogStatusRunning, time.Now().Add(time.Duration(-ScriptMaxRunTime)*time.Minute).Format("2006-01-02 15:04:05"))
 	scriptLogPo, err := l.ScriptLogRepository.One(where)
 	if nil != err {
-		fmt.Println("ScriptLogRepository.One err: " + err.Error())
 		util.Error("ScriptLogRepository.One err: " + err.Error())
 		return
 	}
 
 	if scriptLogPo != nil && scriptLogPo.Id > 0 {
-		fmt.Println(fmt.Sprintf("the task is running scriptId = %d  scriptLogId = %d ", scriptId, scriptLogPo.Id))
 		util.Info(fmt.Sprintf("the task is running scriptId = %d  scriptLogId = %d ", scriptId, scriptLogPo.Id))
 		return
 	}
@@ -82,7 +80,7 @@ func (l *ScriptLogic) Run(scriptId int64, path string) {
 		util.Error("ScriptLogRepository.LastInsertId err: " + err.Error())
 		return
 	}
-	result, err := l.HandleScript(path)
+	result, err := l.HandleScript(path, scriptType)
 	if nil != err {
 		err = l.ScriptLogRepository.Update(logId, model.ScriptLogStatusFail, err.Error(), true)
 		return
@@ -91,11 +89,11 @@ func (l *ScriptLogic) Run(scriptId int64, path string) {
 
 	return
 }
-func (l *ScriptLogic) HandleScript(path string) (res string, err error) {
+func (l *ScriptLogic) HandleScript(path, scriptType string) (res string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(ScriptMaxRunTime)*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "python3", path)
+	cmd := exec.CommandContext(ctx, scriptType, path)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

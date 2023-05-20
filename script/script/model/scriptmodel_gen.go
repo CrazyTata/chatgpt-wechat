@@ -39,13 +39,14 @@ type (
 	}
 
 	Script struct {
-		Id        int64     `db:"id"`
-		Name      string    `db:"name"`       // 脚本名称
-		Path      string    `db:"path"`       // 脚本保存路径
-		IsDelete  int64     `db:"is_delete"`  // 是否删除，0否，1是
-		IsEnable  int64     `db:"is_enable"`  // 是否启用，0否，1是
-		CreatedAt time.Time `db:"created_at"` // 创建时间
-		UpdatedAt time.Time `db:"updated_at"` // 更新时间
+		Id         int64     `db:"id"`
+		Name       string    `db:"name"`        // 脚本名称
+		Path       string    `db:"path"`        // 脚本保存路径
+		ScriptType string    `db:"script_type"` // 脚本类型
+		IsDelete   int64     `db:"is_delete"`   // 是否删除，0否，1是
+		IsEnable   int64     `db:"is_enable"`   // 是否启用，0否，1是
+		CreatedAt  time.Time `db:"created_at"`  // 创建时间
+		UpdatedAt  time.Time `db:"updated_at"`  // 更新时间
 	}
 )
 
@@ -85,8 +86,8 @@ func (m *defaultScriptModel) FindOne(ctx context.Context, id int64) (*Script, er
 func (m *defaultScriptModel) Insert(ctx context.Context, data *Script) (sql.Result, error) {
 	scriptIdKey := fmt.Sprintf("%s%v", cacheScriptIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?)", m.table, scriptRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.Name, data.Path, data.IsDelete, data.IsEnable)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?)", m.table, scriptRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.Name, data.Path, data.ScriptType, data.IsDelete, data.IsEnable)
 	}, scriptIdKey)
 	return ret, err
 }
@@ -95,7 +96,7 @@ func (m *defaultScriptModel) Update(ctx context.Context, data *Script) error {
 	scriptIdKey := fmt.Sprintf("%s%v", cacheScriptIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, scriptRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.Name, data.Path, data.IsDelete, data.IsEnable, data.Id)
+		return conn.ExecCtx(ctx, query, data.Name, data.Path, data.ScriptType, data.IsDelete, data.IsEnable, data.Id)
 	}, scriptIdKey)
 	return err
 }

@@ -21,7 +21,7 @@ func NewScriptRepository(ctx context.Context, svcCtx *svc.ServiceContext) *Scrip
 	}
 }
 
-func (l *ScriptRepository) InsertScript(name, path string) (err error) {
+func (l *ScriptRepository) InsertScript(name, path, scriptType string) (err error) {
 	ctx := context.Background()
 	if name == "" {
 		return
@@ -35,22 +35,22 @@ func (l *ScriptRepository) InsertScript(name, path string) (err error) {
 		return
 	}
 
-	scriptModel := &model.Script{
-		Name:     name,
-		Path:     path,
-		IsDelete: model.ScriptNotDeleted,
-		IsEnable: model.ScriptEnable,
-	}
 	if scriptPo != nil && scriptPo.Id > 0 {
 		scriptPo.Name = name
 		scriptPo.Path = path
 		scriptPo.IsDelete = model.ScriptNotDeleted
 		scriptPo.IsEnable = model.ScriptEnable
 		scriptPo.UpdatedAt = time.Now()
-		err = l.svcCtx.ScriptModel.Update(ctx, scriptModel)
+		err = l.svcCtx.ScriptModel.Update(ctx, scriptPo)
 		return
 	}
-	_, err = l.svcCtx.ScriptModel.Insert(ctx, scriptModel)
+	_, err = l.svcCtx.ScriptModel.Insert(ctx, &model.Script{
+		Name:       name,
+		Path:       path,
+		IsDelete:   model.ScriptNotDeleted,
+		IsEnable:   model.ScriptEnable,
+		ScriptType: scriptType,
+	})
 
 	return
 }
