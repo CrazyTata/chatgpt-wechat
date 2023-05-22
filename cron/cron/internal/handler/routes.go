@@ -19,7 +19,7 @@ func RegisterCrontabs(server *rest.Server, serverCtx *svc.ServiceContext) {
 			logic.NewCronLogic(svcCtx).RunScript()
 		}
 	}(serverCtx)
-	c.AddFunc("@every 1m", cronJob)
+	c.AddFunc("@every 10m", cronJob)
 
 	c.Start()
 }
