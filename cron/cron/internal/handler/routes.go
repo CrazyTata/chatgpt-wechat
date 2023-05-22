@@ -16,7 +16,7 @@ func RegisterCrontabs(server *rest.Server, serverCtx *svc.ServiceContext) {
 	//
 	cronJob := func(svcCtx *svc.ServiceContext) func() {
 		return func() {
-			logic.NewCronLogic(svcCtx).PythonScript()
+			logic.NewCronLogic(svcCtx).RunScript()
 		}
 	}(serverCtx)
 	c.AddFunc("@every 1m", cronJob)
