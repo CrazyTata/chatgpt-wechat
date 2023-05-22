@@ -4,6 +4,7 @@ import (
 	"context"
 	"cron/cron/internal/client"
 	"cron/cron/internal/svc"
+	"cron/cron/util"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -25,6 +26,7 @@ func NewCronLogic(svcCtx *svc.ServiceContext) *CronLogic {
 }
 
 func (l *CronLogic) RunScript() {
+	util.Info("start to deal RunScript")
 	l.client.RunScript()
 	return
 }
