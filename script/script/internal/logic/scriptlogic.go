@@ -5,19 +5,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zeromicro/go-zero/core/logx"
 	"os/exec"
+	"script/script/internal/svc"
+	"script/script/internal/types"
 	"script/script/model"
 	"script/script/repository/script"
 	"script/script/repository/script_log"
 	"script/script/util"
 	"time"
-
-	"github.com/zeromicro/go-zero/core/logx"
-	"script/script/internal/svc"
-	"script/script/internal/types"
 )
 
-const ScriptMaxRunTime = 10
+const ScriptMaxRunTime = 2
+const ErrorMaxLength = 5000
 
 type ScriptLogic struct {
 	logx.Logger
@@ -99,9 +99,18 @@ func (l *ScriptLogic) HandleScript(path, scriptType string) (res string, err err
 	cmd.Stderr = &stderr
 	errRun := cmd.Run()
 	if errRun != nil {
-		errMessage := fmt.Sprint(errRun) + ": " + stderr.String()
-		err = errors.New(errMessage)
-		util.Info("HandleScript" + errMessage)
+
+		originError := stderr.String()
+		errMessage := fmt.Sprint(originError)
+		var newError string
+		if len(originError) > ErrorMaxLength {
+			newError = originError[:ErrorMaxLength]
+		} else {
+			newError = originError
+		}
+		err = errors.New(errMessage + newError)
+
+		util.Info("HandleScript" + errMessage + originError)
 		return
 	}
 	// cmd.Run()执行成功，输出正常信息

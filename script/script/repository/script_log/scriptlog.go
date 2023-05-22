@@ -23,6 +23,7 @@ func NewScriptLogRepository(ctx context.Context, svcCtx *svc.ServiceContext) *Sc
 
 func (l *ScriptLogRepository) Insert(scriptId int64) (res sql.Result, err error) {
 	ctx := context.Background()
+
 	scriptLogModel := &model.ScriptLog{
 		ScriptId:       scriptId,
 		ExecutionCount: 0,

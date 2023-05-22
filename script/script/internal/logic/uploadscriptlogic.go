@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"github.com/zeromicro/go-zero/core/logx"
 	"net/http"
 	"os"
 	"script/script/internal/svc"
@@ -10,9 +11,6 @@ import (
 	"script/script/internal/vars"
 	"script/script/repository/script"
 	"script/script/util"
-	"strings"
-
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type UploadScriptLogic struct {
@@ -57,10 +55,10 @@ func (l *UploadScriptLogic) UploadScript(req *types.UploadScriptRequest, r *http
 		return
 	}
 	defer file.Close()
-	if !strings.Contains(handler.Filename, "py") {
-		err = errors.New("please upload python script")
-		return
-	}
+	//if !strings.Contains(handler.Filename, "py") {
+	//	err = errors.New("please upload python script")
+	//	return
+	//}
 
 	fileName := vars.ScriptDir + handler.Filename
 	_, err = util.RenameFileIfExists(fileName)
