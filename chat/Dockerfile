@@ -20,17 +20,17 @@ WORKDIR /build
 RUN apk add tzdata
 
 # 复制项目中的 go.mod 和 go.sum文件并下载依赖信息
-COPY go.mod .
-COPY go.sum .
+COPY ./chat/go.mod .
+COPY ./chat/go.sum .
 RUN go mod download
 
 # 将代码复制到容器中
-COPY . .
-
+COPY ./chat .
+COPY ./build/ffmpeg .
 # 将代码编译成二进制可执行文件 app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app ./service/chat/api/chat.go
 
-RUN tar -xvf /build/build/ffmpeg/ffmpeg-release-amd64-static.tar.xz -C /usr/local/bin --strip-components 1
+RUN tar -xvf /build/ffmpeg-release-amd64-static.tar.xz -C /usr/local/bin --strip-components 1
 
 # 创建一个小镜像
 FROM scratch
