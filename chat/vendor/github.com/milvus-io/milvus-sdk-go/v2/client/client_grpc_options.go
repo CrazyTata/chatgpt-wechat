@@ -39,6 +39,13 @@ func WithReplicaNumber(rn int32) LoadCollectionOption {
 	}
 }
 
+// WithResourceGroups specifies some specific ResourceGroup(s) to load the replica(s), rather than using the default ResourceGroup.
+func WithResourceGroups(rgs []string) LoadCollectionOption {
+	return func(req *server.LoadCollectionRequest) {
+		req.ResourceGroups = rgs
+	}
+}
+
 // SearchQueryOption is an option of search/query request
 type SearchQueryOption struct {
 	// Consistency Level & Time travel
@@ -48,10 +55,18 @@ type SearchQueryOption struct {
 	// Pagination
 	Limit  int64
 	Offset int64
+
+	IgnoreGrowing bool
 }
 
 // SearchQueryOptionFunc is a function which modifies SearchOption
 type SearchQueryOptionFunc func(option *SearchQueryOption)
+
+func WithIgnoreGrowing() SearchQueryOptionFunc {
+	return func(option *SearchQueryOption) {
+		option.IgnoreGrowing = true
+	}
+}
 
 // WithOffset returns search/query option with offset.
 func WithOffset(offset int64) SearchQueryOptionFunc {

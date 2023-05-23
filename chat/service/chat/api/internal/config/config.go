@@ -14,9 +14,7 @@ type Config struct {
 
 	RedisCache cache.CacheConf
 
-	Log struct {
-		Stat bool `json:"stat,optional,default=false"`
-	}
+	SystemVersion string `json:",optional,default=v0.6.2.2"`
 
 	// jwt 配置
 	Auth struct {
@@ -104,6 +102,7 @@ type Config struct {
 	Plugins struct {
 		Enable bool `json:",optional,default=false"`
 		List   []struct {
+			Enable       bool   `json:",optional,default=true"`
 			NameForHuman string `json:",optional"`
 			NameForModel string `json:",optional"`
 			DescForHuman string `json:",optional"`

@@ -64,7 +64,7 @@ func Deref(t reflect.Type) reflect.Type {
 }
 
 // Repr returns the string representation of v.
-func Repr(v interface{}) string {
+func Repr(v any) string {
 	return lang.Repr(v)
 }
 
@@ -89,7 +89,7 @@ func ValidatePtr(v *reflect.Value) error {
 	return nil
 }
 
-func convertTypeFromString(kind reflect.Kind, str string) (interface{}, error) {
+func convertTypeFromString(kind reflect.Kind, str string) (any, error) {
 	switch kind {
 	case reflect.Bool:
 		switch strings.ToLower(str) {
@@ -255,7 +255,7 @@ func parseGroupedSegments(val string) []string {
 
 // don't modify returned fieldOptions, it's cached and shared among different calls.
 func parseKeyAndOptions(tagName string, field reflect.StructField) (string, *fieldOptions, error) {
-	value := field.Tag.Get(tagName)
+	value := strings.TrimSpace(field.Tag.Get(tagName))
 	if len(value) == 0 {
 		return field.Name, nil, nil
 	}
@@ -370,7 +370,7 @@ func parseOption(fieldOpts *fieldOptions, fieldName, option string) error {
 			fieldOpts.Optional = true
 			fieldOpts.OptionalDep = segs[1]
 		default:
-			return fmt.Errorf("field %s has wrong optional", fieldName)
+			return fmt.Errorf("field %q has wrong optional", fieldName)
 		}
 	case option == optionalOption:
 		fieldOpts.Optional = true
@@ -429,7 +429,7 @@ func parseOptions(val string) []string {
 func parseProperty(field, tag, val string) (string, error) {
 	segs := strings.Split(val, equalToken)
 	if len(segs) != 2 {
-		return "", fmt.Errorf("field %s has wrong %s", field, tag)
+		return "", fmt.Errorf("field %q has wrong tag value %q", field, tag)
 	}
 
 	return strings.TrimSpace(segs[1]), nil
@@ -484,7 +484,7 @@ func parseSegments(val string) []string {
 	return segments
 }
 
-func setMatchedPrimitiveValue(kind reflect.Kind, value reflect.Value, v interface{}) error {
+func setMatchedPrimitiveValue(kind reflect.Kind, value reflect.Value, v any) error {
 	switch kind {
 	case reflect.Bool:
 		value.SetBool(v.(bool))
@@ -536,7 +536,7 @@ func structValueRequired(tag string, tp reflect.Type) (bool, error) {
 	return required, err
 }
 
-func toFloat64(v interface{}) (float64, bool) {
+func toFloat64(v any) (float64, bool) {
 	switch val := v.(type) {
 	case int:
 		return float64(val), true
@@ -623,12 +623,12 @@ func validateNumberRange(fv float64, nr *numberRange) error {
 	return nil
 }
 
-func validateValueInOptions(val interface{}, options []string) error {
+func validateValueInOptions(val any, options []string) error {
 	if len(options) > 0 {
 		switch v := val.(type) {
 		case string:
 			if !stringx.Contains(options, v) {
-				return fmt.Errorf(`error: value "%s" is not defined in options "%v"`, v, options)
+				return fmt.Errorf(`error: value %q is not defined in options "%v"`, v, options)
 			}
 		default:
 			if !stringx.Contains(options, Repr(v)) {
@@ -640,7 +640,7 @@ func validateValueInOptions(val interface{}, options []string) error {
 	return nil
 }
 
-func validateValueRange(mapValue interface{}, opts *fieldOptionsWithContext) error {
+func validateValueRange(mapValue any, opts *fieldOptionsWithContext) error {
 	if opts == nil || opts.Range == nil {
 		return nil
 	}
