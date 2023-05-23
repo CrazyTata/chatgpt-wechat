@@ -27,3 +27,4 @@ chat-api.yaml
 venv
 chat/volumes
 pkg
+logs
