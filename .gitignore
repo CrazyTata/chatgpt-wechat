@@ -28,3 +28,4 @@ venv
 chat/volumes
 pkg
 logs
+build
