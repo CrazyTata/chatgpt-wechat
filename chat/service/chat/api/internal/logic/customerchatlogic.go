@@ -102,7 +102,7 @@ type CustomerCommendVoice struct{}
 func (p CustomerCommendVoice) customerExec(l *CustomerChatLogic, req *types.CustomerChatReq) bool {
 	msg := strings.Replace(req.Msg, "#voice:", "", -1)
 	if msg == "" {
-		wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统错误:未能读取到音频信息")
+		sendToUser(req.OpenKfID, "", req.CustomerID, "系统错误:未能读取到音频信息", l.svcCtx.Config)
 		return false
 	}
 
@@ -132,25 +132,22 @@ func (p CustomerCommendVoice) customerExec(l *CustomerChatLogic, req *types.Cust
 		//	l.svcCtx.Config.Speaker.AliYun.AppKey,
 		//)
 		//if err != nil {
-		//	wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "阿里云音频转换初始化失败:"+err.Error())
+		// sendToUser(req.OpenKfID, "", req.CustomerID, "阿里云音频转换初始化失败:"+err.Error(), l.svcCtx.Config)
 		//	return false
 		//}
 		//msg = strings.Replace(msg, ".mp3", ".amr", -1)
 		//cli = s
 	default:
-		wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统错误:未知的音频转换服务商")
+		sendToUser(req.OpenKfID, "", req.CustomerID, "系统错误:未知的音频转换服务商", l.svcCtx.Config)
 		return false
 	}
 
 	txt, err := cli.SpeakToTxt(msg)
 	if txt == "" || err != nil {
 		logx.Info("openai转换错误", err.Error())
-		wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统错误:音频信息转换错误")
+		sendToUser(req.OpenKfID, "", req.CustomerID, "系统错误:音频信息转换错误", l.svcCtx.Config)
 		return false
 	}
-	// 语音识别成功
-	//wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "语音识别成功:\n\n"+txt+"\n\n系统正在思考中...")
-
 	l.message = txt
 	return true
 }
@@ -162,7 +159,7 @@ func (p CustomerCommendClear) customerExec(l *CustomerChatLogic, req *types.Cust
 	openai.NewUserContext(
 		openai.GetUserUniqueID(req.CustomerID, req.OpenKfID),
 	).Clear()
-	wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "记忆清除完成:来开始新一轮的chat吧")
+	sendToUser(req.OpenKfID, "", req.CustomerID, "记忆清除完成:来开始新一轮的chat吧", l.svcCtx.Config)
 	return false
 }
 
@@ -315,7 +312,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 					}
 				}
 				if tempMessage != "" {
-					go wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage)
+					go sendToUser(req.OpenKfID, "", req.CustomerID, "正在思考中，也许您还想知道"+"\n\n"+tempMessage, l.svcCtx.Config)
 				}
 				for _, chat := range embeddingData {
 					collection.Set(chat.Q, chat.A, false)
@@ -375,7 +372,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				if err != nil {
 					util.Error("CustomerChatLogic:CustomerChat:读取 stream 失败:" + err.Error())
 					logx.Error("读取 stream 失败：", err.Error())
-					sendToUser(req.OpenKfID, req.CustomerID, "系统拥挤，稍后再试~"+err.Error(), l.svcCtx.Config)
+					sendToUser(req.OpenKfID, "", req.CustomerID, "系统拥挤，稍后再试~"+err.Error(), l.svcCtx.Config)
 					return
 				}
 				collection.Set("", messageText, true)
@@ -398,7 +395,7 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				if !ok {
 					// 数据接受完成
 					if len(rs) > 0 {
-						go sendToUser(req.OpenKfID, req.CustomerID,
+						go sendToUser(req.OpenKfID, "", req.CustomerID,
 							string(rs)+"\n--------------------------------\n"+req.Msg,
 							l.svcCtx.Config,
 						)
@@ -408,11 +405,11 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 				rs = append(rs, []rune(s)...)
 
 				if first && len(rs) > 50 && strings.Contains(s, "\n\n") {
-					go sendToUser(req.OpenKfID, req.CustomerID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
+					go sendToUser(req.OpenKfID, "", req.CustomerID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
 					rs = []rune{}
 					first = false
 				} else if len(rs) > 200 && strings.Contains(s, "\n\n") {
-					go sendToUser(req.OpenKfID, req.CustomerID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
+					go sendToUser(req.OpenKfID, "", req.CustomerID, strings.TrimRight(string(rs), "\n\n"), l.svcCtx.Config)
 					rs = []rune{}
 				}
 			}
@@ -422,13 +419,12 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 
 		if err != nil {
 			util.Error("CustomerChatLogic:CustomerChat:error:" + err.Error())
-			//wecom.SendCustomerChatMessage(req.OpenKfID, req.CustomerID, "系统错误:"+err.Error())
-			sendToUser(req.OpenKfID, req.CustomerID, "系统错误:"+err.Error(), l.svcCtx.Config)
+			sendToUser(req.OpenKfID, "", req.CustomerID, "系统错误:"+err.Error(), l.svcCtx.Config)
 			return
 		}
 
 		// 然后把数据 发给对应的客户
-		go sendToUser(req.OpenKfID, req.CustomerID, messageText, l.svcCtx.Config)
+		go sendToUser(req.OpenKfID, "", req.CustomerID, messageText, l.svcCtx.Config)
 		collection.Set("", messageText, true)
 		_, _ = l.svcCtx.ChatModel.Insert(context.Background(), &model.Chat{
 			User:       req.CustomerID,
@@ -525,7 +521,7 @@ func (p CustomerCommendSystem) customerExec(l *CustomerChatLogic, req *types.Cus
 		l.model,
 		l.basePrompt,
 	)
-	sendToUser(req.OpenKfID, req.CustomerID, tips, l.svcCtx.Config)
+	sendToUser(req.OpenKfID, "", req.CustomerID, tips, l.svcCtx.Config)
 	return false
 }
 
@@ -539,14 +535,14 @@ func (p CustomerCommendHelp) customerExec(l *CustomerChatLogic, req *types.Custo
 		"#system 查看会话系统信息",
 		"#clear 清空当前会话的数据",
 	)
-	sendToUser(req.OpenKfID, req.CustomerID, tips, l.svcCtx.Config)
+	sendToUser(req.OpenKfID, "", req.CustomerID, tips, l.svcCtx.Config)
 	return false
 }
 
 type CustomerCommendAbout struct{}
 
 func (p CustomerCommendAbout) customerExec(l *CustomerChatLogic, req *types.CustomerChatReq) bool {
-	sendToUser(req.OpenKfID, req.CustomerID, "https://github.com/whyiyhw/chatgpt-wechat", l.svcCtx.Config)
+	sendToUser(req.OpenKfID, "", req.CustomerID, "https://github.com/whyiyhw/chatgpt-wechat", l.svcCtx.Config)
 	return false
 }
 
@@ -554,6 +550,6 @@ type CustomerCommendDirect struct{}
 
 func (p CustomerCommendDirect) customerExec(l *CustomerChatLogic, req *types.CustomerChatReq) bool {
 	msg := strings.Replace(req.Msg, "#direct:", "", -1)
-	sendToUser(req.OpenKfID, req.CustomerID, msg, l.svcCtx.Config)
+	sendToUser(req.OpenKfID, "", req.CustomerID, msg, l.svcCtx.Config)
 	return false
 }

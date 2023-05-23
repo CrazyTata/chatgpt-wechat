@@ -48,3 +48,21 @@ goctl api go -api user.api -dir .
 ```
 
 ## git相关
+### 将 fork 的仓库合并到自己的仓库
+#### 在本地电脑上，将自己仓库的代码克隆到本地：
+```
+git clone git@github.com:<your-username>/<a>.git
+git@github.com:chy4pro/chatgpt-wechat.git
+
+cd <a>
+git remote add upstream git://github.com/<original-author>/<b>.git
+git remote add upstream git@github.com:whyiyhw/chatgpt-wechat.git
+
+
+git fetch upstream
+git merge upstream/main
+
+
+git push origin main
+
+```

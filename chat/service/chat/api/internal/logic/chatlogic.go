@@ -981,7 +981,11 @@ type CommendUsage struct{}
 func (p CommendUsage) exec(l *ChatLogic, req *types.ChatReq) bool {
 	if strings.HasPrefix(req.MSG, "#usage") {
 		// 查询自己key的使用情况
-		key := l.svcCtx.Config.OpenAi.Key
+
+		// openai client
+		c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithOpenAIKey()
+
+		key := c.APIKey
 		if strings.HasPrefix(req.MSG, "#usage:") {
 			key = strings.Replace(req.MSG, "#usage:", "", -1)
 		}
