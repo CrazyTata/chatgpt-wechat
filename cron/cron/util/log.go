@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const BaseLogDirectory = "/var/log/util/"
+const BaseLogDirectory = "/var/log/cron/"
 const LogDirectoryInfo = "info"
 const LogDirectoryError = "error"
 
