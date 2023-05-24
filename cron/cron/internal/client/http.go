@@ -12,7 +12,6 @@ func NewHttpService() *HttpService {
 }
 
 func (h *HttpService) RunScript() {
-	url := "http://127.0.0.1:9997/api/crontab/run-script"
-
+	url := "http://script:9997/api/crontab/run-script"
 	_, _ = util.Get(url)
 }
