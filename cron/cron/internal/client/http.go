@@ -1,6 +1,7 @@
 package client
 
 import (
+	"cron/cron/internal/config"
 	"cron/cron/util"
 )
 
@@ -12,6 +13,6 @@ func NewHttpService() *HttpService {
 }
 
 func (h *HttpService) RunScript() {
-	url := "http://script:9997/api/crontab/run-script"
+	url := config.ScriptService + config.RunScriptUri
 	_, _ = util.Get(url)
 }
