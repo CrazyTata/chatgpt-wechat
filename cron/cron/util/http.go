@@ -63,10 +63,12 @@ func Get(url string) (string, error) {
 	//提交请求
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		Info(" url:" + url + " http.NewRequest err:" + err.Error())
 		return "", err
 	}
 	response, err := client.Do(request)
 	if err != nil {
+		Info(" url:" + url + " client.Do  err:" + err.Error())
 		return "", err
 	}
 	defer response.Body.Close()
