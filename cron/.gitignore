@@ -25,3 +25,4 @@ go.work
 build
 temp-files
 logs
+cron-api.yaml

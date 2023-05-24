@@ -25,3 +25,5 @@ go.work
 build
 temp-files
 logs
+
+script-api.yaml

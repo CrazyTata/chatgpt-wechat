@@ -1,0 +1,11 @@
+Name: script-api
+Host: 0.0.0.0
+Port: 9997
+Mysql:                                              # mysql配置
+  DataSource: root:123456@tcp(mysql57:3306)/script?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai # 数据库连接地址
+
+RedisCache:                                         # redis缓存配置
+  - Host: localhost:46379                               # redis缓存地址
+    Pass: "123456"
+Log:
+  stat: false
