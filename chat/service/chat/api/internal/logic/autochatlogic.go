@@ -79,12 +79,14 @@ func (l *AutoChatLogic) CustomerChat(customerID, openKfID, message, newPromote, 
 	if err != nil {
 		return err
 	}
+	var postModel string
 	if customerConfigPo != nil {
 		if customerConfigPo.Prompt != "" {
 			l.basePrompt = customerConfigPo.Prompt
 		}
+		postModel = customerConfigPo.PostModel
 	}
-
+	c = c.WithPostModel(postModel)
 	// context
 	collection := openai.NewUserContext(
 		openai.GetUserUniqueID(customerID, openKfID),
@@ -176,7 +178,7 @@ func (l *AutoChatLogic) CustomerChat(customerID, openKfID, message, newPromote, 
 
 func (l *AutoChatLogic) Chat(userId, message, newPromote string, agentId int64) (err error) {
 
-	var prompt, baseModel, agentSecret string
+	var prompt, baseModel, agentSecret, postModel string
 
 	//get config
 	applicationConfigPo, err := l.svcCtx.ApplicationConfigModel.FindOneByQuery(context.Background(),
@@ -190,7 +192,7 @@ func (l *AutoChatLogic) Chat(userId, message, newPromote string, agentId int64) 
 		prompt = applicationConfigPo.BasePrompt
 		baseModel = applicationConfigPo.Model
 		agentSecret = applicationConfigPo.AgentSecret
-
+		postModel = applicationConfigPo.PostModel
 	}
 
 	l.setModelName(baseModel).setBasePrompt(prompt).setAgentSecret(agentSecret).setBaseHost()
@@ -200,7 +202,8 @@ func (l *AutoChatLogic) Chat(userId, message, newPromote string, agentId int64) 
 		WithModel(l.model).
 		WithBaseHost(l.baseHost).
 		WithOrigin(l.svcCtx.Config.OpenAi.Origin).
-		WithEngine(l.svcCtx.Config.OpenAi.Engine)
+		WithEngine(l.svcCtx.Config.OpenAi.Engine).
+		WithPostModel(postModel)
 	if l.svcCtx.Config.Proxy.Enable {
 		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
 	}

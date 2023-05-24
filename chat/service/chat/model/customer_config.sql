@@ -5,6 +5,7 @@ create table if not exists customer_config
     kf_id    varchar(128)                  not null comment '客服ID',
     kf_name varchar(50)  default '' null,
     prompt  varchar(1000) default '' null,
+    post_model  varchar(128)   default  ''                      not null comment '发送请求的model',
     embedding_enable BOOLEAN DEFAULT false  not null comment '是否启用embedding',
     embedding_mode VARCHAR(64) default '' not null comment 'embedding的搜索模式',
     score DECIMAL(3, 1) comment '分数',

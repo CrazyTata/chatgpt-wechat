@@ -33,6 +33,7 @@ type CustomerChatLogic struct {
 	baseHost   string
 	basePrompt string
 	message    string
+	postModel  string
 }
 
 func NewCustomerChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CustomerChatLogic {
@@ -110,7 +111,8 @@ func (p CustomerCommendVoice) customerExec(l *CustomerChatLogic, req *types.Cust
 		WithModel(l.model).
 		WithBaseHost(l.svcCtx.Config.OpenAi.Host).
 		WithOrigin(l.svcCtx.Config.OpenAi.Origin).
-		WithEngine(l.svcCtx.Config.OpenAi.Engine)
+		WithEngine(l.svcCtx.Config.OpenAi.Engine).
+		WithPostModel(l.postModel)
 
 	if l.svcCtx.Config.Proxy.Enable {
 		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
@@ -182,30 +184,12 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 		}, nil
 	}
 
-	// 指令匹配， 根据响应值判定是否需要去调用 openai 接口了
-	proceed, _ := l.FactoryCommend(req)
-	if !proceed {
-		return
-	}
-	if l.message != "" {
-		req.Msg = l.message
-	}
-
-	// openai client
-	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).
-		WithModel(l.model).
-		WithBaseHost(l.baseHost).
-		WithOrigin(l.svcCtx.Config.OpenAi.Origin).
-		WithEngine(l.svcCtx.Config.OpenAi.Engine)
-	if l.svcCtx.Config.Proxy.Enable {
-		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
-	}
 	embeddingEnable := true
 	embeddingMode := EMBEDDING_MODEMBEDDING
 	var baseScore float32
 	var baseTopK int
 	var clearContextTime int64
-
+	var postModel string
 	//get prompt
 	customerConfigPo, err := l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
 		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": req.OpenKfID}),
@@ -226,6 +210,27 @@ func (l *CustomerChatLogic) CustomerChat(req *types.CustomerChatReq) (resp *type
 			baseTopK = int(customerConfigPo.TopK)
 		}
 		clearContextTime = customerConfigPo.ClearContextTime
+		postModel = customerConfigPo.PostModel
+	}
+	l.setPostModel(postModel)
+
+	// 指令匹配， 根据响应值判定是否需要去调用 openai 接口了
+	proceed, _ := l.FactoryCommend(req)
+	if !proceed {
+		return
+	}
+	if l.message != "" {
+		req.Msg = l.message
+	}
+
+	// openai client
+	c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).
+		WithModel(l.model).
+		WithBaseHost(l.baseHost).
+		WithOrigin(l.svcCtx.Config.OpenAi.Origin).
+		WithEngine(l.svcCtx.Config.OpenAi.Engine).WithPostModel(postModel)
+	if l.svcCtx.Config.Proxy.Enable {
+		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
 	}
 
 	// context
@@ -552,4 +557,16 @@ func (p CustomerCommendDirect) customerExec(l *CustomerChatLogic, req *types.Cus
 	msg := strings.Replace(req.Msg, "#direct:", "", -1)
 	sendToUser(req.OpenKfID, "", req.CustomerID, msg, l.svcCtx.Config)
 	return false
+}
+
+func (l *CustomerChatLogic) setPostModel(postModel string) (ls *CustomerChatLogic) {
+	var m string
+	if "" != postModel {
+		m = postModel
+	}
+	if m == "" || (m != openai.TextModel && m != openai.ChatModel && m != openai.ChatModelNew && m != openai.ChatModel4) {
+		m = openai.ChatModel
+	}
+	l.postModel = m
+	return l
 }

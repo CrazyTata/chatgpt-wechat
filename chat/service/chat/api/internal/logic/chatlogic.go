@@ -40,6 +40,7 @@ type ChatLogic struct {
 	basePrompt  string
 	message     string
 	agentSecret string
+	postModel   string
 }
 
 func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
@@ -53,7 +54,7 @@ func NewChatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatLogic {
 func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) {
 	embeddingEnable := false
 	embeddingMode := l.svcCtx.Config.Embeddings.Mode
-	var prompt, baseModel, agentSecret string
+	var prompt, baseModel, agentSecret, postModel string
 	var baseTopK int
 	var clearContextTime int64
 	var baseScore float32
@@ -78,11 +79,12 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 		baseModel = applicationConfigPo.Model
 		agentSecret = applicationConfigPo.AgentSecret
 		clearContextTime = applicationConfigPo.ClearContextTime
+		postModel = applicationConfigPo.PostModel
 	}
 	// 去找 openai 获取数据
 	if req.Channel == "openai" {
 
-		l.setModelName(baseModel).setBasePrompt(prompt).setAgentSecret(agentSecret).setBaseHost()
+		l.setModelName(baseModel).setBasePrompt(prompt).setAgentSecret(agentSecret).setBaseHost().setPostModel(postModel)
 
 		// 如果用户有自定义的配置，就使用用户的配置
 		configCollection, configErr := l.svcCtx.ChatConfigModel.FindOneByQuery(
@@ -111,7 +113,8 @@ func (l *ChatLogic) Chat(req *types.ChatReq) (resp *types.ChatReply, err error) 
 			WithModel(l.model).
 			WithBaseHost(l.baseHost).
 			WithOrigin(l.svcCtx.Config.OpenAi.Origin).
-			WithEngine(l.svcCtx.Config.OpenAi.Engine)
+			WithEngine(l.svcCtx.Config.OpenAi.Engine).
+			WithPostModel(postModel)
 		if l.svcCtx.Config.Proxy.Enable {
 			c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
 		}
@@ -764,7 +767,8 @@ func (p CommendVoice) exec(l *ChatLogic, req *types.ChatReq) bool {
 		WithModel(l.model).
 		WithBaseHost(l.svcCtx.Config.OpenAi.Host).
 		WithOrigin(l.svcCtx.Config.OpenAi.Origin).
-		WithEngine(l.svcCtx.Config.OpenAi.Engine)
+		WithEngine(l.svcCtx.Config.OpenAi.Engine).
+		WithPostModel(l.postModel)
 
 	if l.svcCtx.Config.Proxy.Enable {
 		c = c.WithHttpProxy(l.svcCtx.Config.Proxy.Http).WithSocks5Proxy(l.svcCtx.Config.Proxy.Socket5)
@@ -983,7 +987,7 @@ func (p CommendUsage) exec(l *ChatLogic, req *types.ChatReq) bool {
 		// 查询自己key的使用情况
 
 		// openai client
-		c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithOpenAIKey()
+		c := openai.NewChatClient(l.svcCtx.Config.OpenAi.Key).WithOpenAIKey().WithPostModel(l.postModel)
 
 		key := c.APIKey
 		if strings.HasPrefix(req.MSG, "#usage:") {
@@ -1030,4 +1034,16 @@ func (p CommendPlugin) exec(l *ChatLogic, req *types.ChatReq) bool {
 		}
 	}
 	return true
+}
+
+func (l *ChatLogic) setPostModel(postModel string) (ls *ChatLogic) {
+	var m string
+	if "" != postModel {
+		m = postModel
+	}
+	if m == "" || (m != openai.TextModel && m != openai.ChatModel && m != openai.ChatModelNew && m != openai.ChatModel4) {
+		m = openai.ChatModel
+	}
+	l.postModel = m
+	return l
 }

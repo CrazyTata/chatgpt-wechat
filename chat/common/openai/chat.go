@@ -18,7 +18,7 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 			continue
 		}
 		//估算长度
-		if NumTokensFromMessages(req[len(req)-i-1:], ChatModel4) < (3900 - c.MaxToken) {
+		if NumTokensFromMessages(req[len(req)-i-1:], c.PostModel) < (3900 - c.MaxToken) {
 			first = len(req) - i - 1
 		} else {
 			break
@@ -40,7 +40,7 @@ func (c *ChatClient) ChatStream(req []ChatModelMessage, channel chan string) (st
 		c.Model = ChatModel
 	}
 	request := copenai.ChatCompletionRequest{
-		Model:       ChatModel4,
+		Model:       c.PostModel,
 		Messages:    messages,
 		MaxTokens:   c.MaxToken,
 		Temperature: c.Temperature,
@@ -102,7 +102,7 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 			continue
 		}
 		//估算长度
-		if NumTokensFromMessages(req[len(req)-i-1:], ChatModel) < (3900 - c.MaxToken) {
+		if NumTokensFromMessages(req[len(req)-i-1:], c.PostModel) < (3900 - c.MaxToken) {
 			first = len(req) - i - 1
 		} else {
 			break
@@ -120,7 +120,7 @@ func (c *ChatClient) Chat(req []ChatModelMessage) (string, error) {
 		})
 	}
 	request := copenai.ChatCompletionRequest{
-		Model:       ChatModel4,
+		Model:       c.PostModel,
 		Messages:    messages,
 		MaxTokens:   c.MaxToken,
 		Temperature: c.Temperature,

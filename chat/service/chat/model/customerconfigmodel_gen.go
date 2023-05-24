@@ -43,6 +43,7 @@ type (
 		KfId             string          `db:"kf_id"` // 客服ID
 		KfName           string          `db:"kf_name"`
 		Prompt           string          `db:"prompt"`
+		PostModel        string          `db:"post_model"`         // 发送请求的model
 		EmbeddingEnable  bool            `db:"embedding_enable"`   // 是否启用embedding
 		EmbeddingMode    string          `db:"embedding_mode"`     // embedding的搜索模式
 		Score            sql.NullFloat64 `db:"score"`              // 分数
@@ -89,8 +90,8 @@ func (m *defaultCustomerConfigModel) FindOne(ctx context.Context, id int64) (*Cu
 func (m *defaultCustomerConfigModel) Insert(ctx context.Context, data *CustomerConfig) (sql.Result, error) {
 	customerConfigIdKey := fmt.Sprintf("%s%v", cacheCustomerConfigIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?)", m.table, customerConfigRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, customerConfigRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.PostModel, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime)
 	}, customerConfigIdKey)
 	return ret, err
 }
@@ -99,7 +100,7 @@ func (m *defaultCustomerConfigModel) Update(ctx context.Context, data *CustomerC
 	customerConfigIdKey := fmt.Sprintf("%s%v", cacheCustomerConfigIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, customerConfigRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.Id)
+		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.PostModel, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.Id)
 	}, customerConfigIdKey)
 	return err
 }

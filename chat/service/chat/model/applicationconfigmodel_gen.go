@@ -44,6 +44,7 @@ type (
 		AgentSecret      string          `db:"agent_secret"`       // 应用secret
 		AgentName        string          `db:"agent_name"`         // 应用名
 		Model            string          `db:"model"`              // model
+		PostModel        string          `db:"post_model"`         // 发送请求的model
 		BasePrompt       string          `db:"base_prompt"`        // openai 基础设定（可选）
 		Welcome          string          `db:"welcome"`            // 进入应用时的欢迎语
 		GroupEnable      bool            `db:"group_enable"`       // 是否启用ChatGPT应用内部交流群
@@ -95,8 +96,8 @@ func (m *defaultApplicationConfigModel) FindOne(ctx context.Context, id int64) (
 func (m *defaultApplicationConfigModel) Insert(ctx context.Context, data *ApplicationConfig) (sql.Result, error) {
 	applicationConfigIdKey := fmt.Sprintf("%s%v", cacheApplicationConfigIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, applicationConfigRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.AgentId, data.AgentSecret, data.AgentName, data.Model, data.BasePrompt, data.Welcome, data.GroupEnable, data.GroupName, data.GroupChatId, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, applicationConfigRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.AgentId, data.AgentSecret, data.AgentName, data.Model, data.PostModel, data.BasePrompt, data.Welcome, data.GroupEnable, data.GroupName, data.GroupChatId, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime)
 	}, applicationConfigIdKey)
 	return ret, err
 }
@@ -105,7 +106,7 @@ func (m *defaultApplicationConfigModel) Update(ctx context.Context, data *Applic
 	applicationConfigIdKey := fmt.Sprintf("%s%v", cacheApplicationConfigIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, applicationConfigRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.AgentId, data.AgentSecret, data.AgentName, data.Model, data.BasePrompt, data.Welcome, data.GroupEnable, data.GroupName, data.GroupChatId, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.Id)
+		return conn.ExecCtx(ctx, query, data.AgentId, data.AgentSecret, data.AgentName, data.Model, data.PostModel, data.BasePrompt, data.Welcome, data.GroupEnable, data.GroupName, data.GroupChatId, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.Id)
 	}, applicationConfigIdKey)
 	return err
 }

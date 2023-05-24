@@ -5,6 +5,7 @@ create table if not exists application_config
     agent_secret    varchar(128)                              not null comment '应用secret',
     agent_name    varchar(128)                              not null comment '应用名',
     model  varchar(128)   default  ''                      not null comment 'model',
+    post_model  varchar(128)   default  ''                      not null comment '发送请求的model',
     base_prompt VARCHAR(1000) default '' not null comment 'openai 基础设定（可选）',
     welcome VARCHAR(1000)  default '' not null comment '进入应用时的欢迎语',
     group_enable BOOLEAN DEFAULT false  not null comment '是否启用ChatGPT应用内部交流群',

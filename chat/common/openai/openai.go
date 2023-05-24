@@ -41,6 +41,7 @@ type ChatClient struct {
 	HttpProxy   string   `json:"http_proxy"`
 	Socks5Proxy string   `json:"socks5_proxy"`
 	Model       string   `json:"model"`
+	PostModel   string   `json:"post_model"`
 	BaseHost    string   `json:"base_host"`
 	MaxToken    int      `json:"max_token"`
 	Temperature float32  `json:"temperature"`
@@ -70,6 +71,19 @@ func (c *ChatClient) WithModel(model string) *ChatClient {
 	if model != "" {
 		c.Model = model
 	}
+	return c
+}
+
+func (c *ChatClient) WithPostModel(model string) *ChatClient {
+	var m string
+	if "" != model {
+		m = model
+	}
+	if m == "" || (m != TextModel && m != ChatModel && m != ChatModelNew && m != ChatModel4) {
+		m = ChatModel
+	}
+	c.PostModel = m
+
 	return c
 }
 
@@ -215,68 +229,6 @@ type OpenAIRequest struct {
 	Request  interface{}
 }
 
-//
-//func (c *ChatClient) MakeOpenAILoopRequestV2(req *OpenAIRequest) (interface{}, error) {
-//	if strings.Contains(req.Error.Error(), NeedLoopErrorMessage) {
-//		//账号有问题
-//		loopTimes := len(c.APIKeys)
-//		for {
-//			if loopTimes < 0 {
-//				fmt.Println("循环达到最大次数")
-//				return "", req.Error
-//			}
-//			fmt.Printf("loopTimes:%d \n", loopTimes)
-//			c.WithNextOpenAIKey()
-//			config := c.buildConfig()
-//
-//			cli := copenai.NewClientWithConfig(config)
-//			var result interface{}
-//			var resultError error
-//
-//			switch req.FuncName {
-//			case "CreateTranscription":
-//				result, resultError = cli.CreateTranscription(context.Background(), req.Request.(copenai.AudioRequest))
-//
-//			case "CreateCompletion":
-//				result, resultError = cli.CreateCompletion(context.Background(), req.Request.(copenai.CompletionRequest))
-//
-//			case "CreateChatCompletion":
-//				result, resultError = cli.CreateChatCompletion(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-//
-//			case "CreateChatCompletionStream":
-//				resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
-//				if nil != resultStreamError {
-//					return nil, resultStreamError
-//				}
-//				_, resultError = resultStream.Recv()
-//				if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-//					result = resultStream
-//				}
-//			case "CreateEmbeddings":
-//				result, resultError = cli.CreateEmbeddings(context.Background(), req.Request.(copenai.EmbeddingRequest))
-//
-//			default:
-//				fmt.Println("没有匹配到对应方法" + req.FuncName)
-//				return nil, req.Error
-//			}
-//			if resultError != nil {
-//				if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-//					loopTimes--
-//					continue
-//				} else {
-//					return "", resultError
-//				}
-//			}
-//
-//			fmt.Println("return the result")
-//			return result, nil
-//		}
-//
-//	} else {
-//		return "", req.Error
-//	}
-//}
-
 func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, error) {
 	//账号有问题
 	loopTimes := len(c.APIKeys)
@@ -307,7 +259,9 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 		case "CreateChatCompletionStream":
 			resultStream, resultStreamError := cli.CreateChatCompletionStream(context.Background(), req.Request.(copenai.ChatCompletionRequest))
 			if nil != resultStreamError {
-				return nil, resultStreamError
+				util.Error("cli.CreateChatCompletionStream err:" + resultStreamError.Error())
+				loopTimes--
+				continue
 			}
 			_, resultError = resultStream.Recv()
 			if resultError == nil || !strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
@@ -323,7 +277,6 @@ func (c *ChatClient) MakeOpenAILoopRequest(req *OpenAIRequest) (interface{}, err
 		util.Info(fmt.Sprintf("MakeOpenAILoopRequest dealMethod:%s,params: %+v ,err:%+v , response:%+v \n\n", req.FuncName, req.Request, resultError, result))
 		if resultError != nil {
 			if strings.Contains(resultError.Error(), NeedLoopErrorMessage) {
-				fmt.Printf("MakeOpenAILoopRequest params: %+v ,err:%+v ,dealMethod:%s \n", req.Request, resultError, req.FuncName)
 				loopTimes--
 				continue
 			} else {
@@ -345,5 +298,5 @@ func (c *ChatClient) GetNumTokens(message string) int {
 		Content: message,
 	})
 
-	return NumTokensFromMessages(messages, ChatModel)
+	return NumTokensFromMessages(messages, c.PostModel)
 }
