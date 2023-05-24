@@ -2,34 +2,14 @@
 ## 部署相关
 ### 部署chat
 ```shell
-cd /www/wwwroot/chatgpt-wechat/chat/  #进入项目目录
+cd /www/wwwroot/chatgpt-wechat  #进入项目目录
 git pull #拉取最新代码
 vi ./service/chat/api/etc/chat-api.yaml #修改配置文件，如果配置无变动，跳过这一步
 sudo docker-compose build #打包
 sudo docker-compose down #关闭服务
 sudo docker-compose up -d #启用服务
-docker logs tail=100 chat-web-1 #查看接口日志
+docker logs web #查看接口日志
 ```
-
-### 部署script
-```shell
-cd /www/wwwroot/chatgpt-wechat/script/  #进入项目目录
-git pull #拉取最新代码
-vi ./script/script-api.yaml #修改配置文件，如果配置无变动，跳过这一步
-go build #打包
-./script & #启用服务
-```
-
-### 部署cron
-```shell
-cd /www/wwwroot/chatgpt-wechat/cron/  #进入项目目录
-git pull #拉取最新代码
-vi ./cron/cron-api.yaml #修改配置文件，如果配置无变动，跳过这一步
-go build #打包
-./cron & #启用服务
-```
-
-
 
 ### docker
 清理磁盘 `docker system prune`
