@@ -101,16 +101,16 @@ func (l *ScriptLogic) HandleScript(path, scriptType string) (res string, err err
 	if errRun != nil {
 
 		originError := stderr.String()
-		errMessage := fmt.Sprint(originError)
+		//errMessage := fmt.Sprint(originError)
 		var newError string
 		if len(originError) > ErrorMaxLength {
 			newError = originError[:ErrorMaxLength]
 		} else {
 			newError = originError
 		}
-		err = errors.New(errMessage + newError)
+		err = errors.New(errRun.Error() + newError)
 
-		util.Info("HandleScript" + errMessage + originError)
+		util.Info("HandleScript " + errRun.Error() + originError)
 		return
 	}
 	// cmd.Run()执行成功，输出正常信息
