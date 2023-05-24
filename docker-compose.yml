@@ -2,6 +2,7 @@ version: '3'
 
 services:
   web:
+    container_name: web
     build:
       context: .
       dockerfile: ./chat/Dockerfile
@@ -102,6 +103,7 @@ services:
       - default
     restart: always
   cron:
+    container_name: cron
     build:
       context: .
       dockerfile: ./cron/Dockerfile
@@ -116,6 +118,7 @@ services:
     networks:
       - default
   script:
+    container_name: script
     build:
       context: .
       dockerfile: ./script/Dockerfile
