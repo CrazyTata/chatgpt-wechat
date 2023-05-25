@@ -140,6 +140,8 @@ func DealUserLastMessageByToken(token, openKfID string) {
 		}
 		if v.Msgtype == "text" && v.Origin == 3 {
 			if len([]rune(v.Text.Content)) > 500 {
+				util.Info("DealUserLastMessageByToken err:发送的消息最大500字符，请分段发送 content:" + v.Text.Content)
+				fmt.Println("DealUserLastMessageByToken err:发送的消息最大500字符，请分段发送 content:" + v.Text.Content)
 				CustomerCallLogic(v.ExternalUserid, v.OpenKfid, v.Msgid, "#direct:发送的消息最大500字符，请分段发送~")
 				return
 			}
