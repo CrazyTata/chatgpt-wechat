@@ -28,6 +28,7 @@ venv
 chat/volumes
 pkg
 logs
+file
 build/etcd
 build/milvus
 build/minio

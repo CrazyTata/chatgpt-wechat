@@ -127,6 +127,7 @@ services:
     volumes:
       - ./script/script:/www/wwwroot/script
       - ./logs/script:/var/log/script
+      - ./file/script:/var/file/script
       - ./script/script/etc/script-api.yaml:/etc/script-api.yaml
     privileged: true
     restart: always

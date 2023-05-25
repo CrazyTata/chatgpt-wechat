@@ -1,5 +1,5 @@
 package vars
 
 const (
-	ScriptDir = "./temp-files/python/"
+	ScriptDir = "/var/file/script/"
 )
