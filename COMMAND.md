@@ -8,7 +8,7 @@ vi ./service/chat/api/etc/chat-api.yaml #修改配置文件，如果配置无变
 sudo docker-compose build #打包
 sudo docker-compose down #关闭服务
 sudo docker-compose up -d #启用服务
-docker logs web #查看接口日志
+docker logs --tail 500 容器名 #查看接口日志
 ```
 
 ### docker
