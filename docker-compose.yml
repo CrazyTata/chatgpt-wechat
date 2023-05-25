@@ -131,15 +131,7 @@ services:
     privileged: true
     restart: always
     environment:
-      - PATH=$PATH:/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/go:/usr/local/go/bin
-    depends_on:
-      - python3
-    networks:
-      - default
-  python3:
-    container_name: python3
-    image: python:3-alpine
-    command: tail -f /dev/null   # python容器启动后不会立刻退出，可以防止golang容器在依赖python容器时报错
+      - PATH=$PATH:/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/go:/usr/local/go/binsu
     networks:
       - default
 networks:

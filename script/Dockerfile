@@ -34,7 +34,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app ./script/scri
 RUN tar -xvf /build/ffmpeg-release-amd64-static.tar.xz -C /usr/local/bin --strip-components 1
 
 # 创建一个小镜像
-FROM scratch
+FROM alpine:latest
+# 安装 Python 和所需的依赖项
+RUN apk add --no-cache python3
 
 COPY --from=builder /usr/local/bin/ffmpeg /bin/ffmpeg
 COPY --from=builder /usr/share/zoneinfo/Asia/Shanghai /usr/share/zoneinfo/Asia/Shanghai
