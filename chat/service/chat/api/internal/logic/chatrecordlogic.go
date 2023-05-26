@@ -2,9 +2,9 @@ package logic
 
 import (
 	"chat/common/redis"
-	"chat/service/chat/api/internal/config"
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
+	"chat/service/chat/api/internal/vars"
 	"chat/service/chat/model"
 	"context"
 	"crypto/md5"
@@ -104,7 +104,7 @@ func (l *ChatRecordLogic) ChatHistoryExportKey(openKfID, userNickname string, ch
 }
 
 func (l *ChatRecordLogic) GetDirName() string {
-	dir := config.ChatHistoryDirectory + time.Now().Format("20060102")
+	dir := vars.ChatHistoryDirectory + time.Now().Format("20060102")
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		fmt.Printf("Cannot create a file when that file already exists %v \n ", err)

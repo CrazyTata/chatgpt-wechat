@@ -34,3 +34,4 @@ build/milvus
 build/minio
 build/mysql/data
 build/redis/data
+bin

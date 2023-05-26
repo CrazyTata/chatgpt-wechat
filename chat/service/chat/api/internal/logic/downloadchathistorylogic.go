@@ -1,9 +1,9 @@
 package logic
 
 import (
-	"chat/service/chat/api/internal/config"
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
+	"chat/service/chat/api/internal/vars"
 	"context"
 	"github.com/zeromicro/go-zero/core/logx"
 	"io"
@@ -28,7 +28,7 @@ func NewDownloadChatHistoryLogic(ctx context.Context, svcCtx *svc.ServiceContext
 }
 
 func (l *DownloadChatHistoryLogic) DownloadChatHistory(req *types.DownloadChatHistoryReq, w http.ResponseWriter, r *http.Request) {
-	filePath := config.ChatHistoryDirectory + time.Now().Format("20060102") + "/" + req.File
+	filePath := vars.ChatHistoryDirectory + time.Now().Format("20060102") + "/" + req.File
 
 	file, err := os.Open(filePath)
 	if err != nil {
