@@ -1,0 +1,4 @@
+/*! 
+ Build based on gin-vue-admin 
+ Time : 1685443405000 */
+System.register(["./index-legacy-e1b7a359.js"],(function(t,n){"use strict";var i;return{setters:[function(t){i=t.v}],execute:function(){t("c",(function(t){return i({url:"/applicationConfig/createApplicationConfig",method:"post",data:t})})),t("a",(function(t){return i({url:"/applicationConfig/deleteApplicationConfig",method:"delete",data:t})})),t("d",(function(t){return i({url:"/applicationConfig/deleteApplicationConfigByIds",method:"delete",data:t})})),t("u",(function(t){return i({url:"/applicationConfig/updateApplicationConfig",method:"put",data:t})})),t("f",(function(t){return i({url:"/applicationConfig/findApplicationConfig",method:"get",params:t})})),t("g",(function(t){return i({url:"/applicationConfig/getApplicationConfigList",method:"get",params:t})}))}}}));

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"chat/common/util"
 	"context"
 	"github.com/Masterminds/squirrel"
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -17,6 +18,9 @@ type (
 		FindOneByQuery(ctx context.Context, rowBuilder squirrel.SelectBuilder) (*CustomerConfig, error)
 		RowBuilder() squirrel.SelectBuilder
 		FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*CustomerConfig, error)
+		CountBuilder(field string) squirrel.SelectBuilder
+		FindCount(ctx context.Context, countBuilder squirrel.SelectBuilder) (int64, error)
+		BuildFiled(old, new *CustomerConfig)
 	}
 
 	customCustomerConfigModel struct {
@@ -69,4 +73,72 @@ func (m *defaultCustomerConfigModel) FindAll(ctx context.Context, rowBuilder squ
 	default:
 		return nil, err
 	}
+}
+
+func (m *defaultCustomerConfigModel) CountBuilder(field string) squirrel.SelectBuilder {
+	return squirrel.Select("COUNT(" + field + ")").From(m.table)
+}
+
+func (m *defaultCustomerConfigModel) FindCount(ctx context.Context, countBuilder squirrel.SelectBuilder) (int64, error) {
+
+	query, values, err := countBuilder.ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	var resp int64
+	err = m.QueryRowNoCacheCtx(ctx, &resp, query, values...)
+	switch err {
+	case nil:
+		return resp, nil
+	default:
+		return 0, err
+	}
+}
+
+func (m *defaultCustomerConfigModel) BuildFiled(old, new *CustomerConfig) {
+
+	if new == nil {
+		return
+	}
+	if old == nil && new.Id == 0 {
+		new.Id = util.GenerateSnowflakeInt64()
+		return
+	}
+	new.Id = old.Id
+
+	if new.ClearContextTime == 0 {
+		new.ClearContextTime = old.ClearContextTime
+	}
+
+	if new.TopK == 0 {
+		new.TopK = old.TopK
+	}
+
+	new.EmbeddingEnable = old.EmbeddingEnable
+
+	if new.KfId == "" {
+		new.KfId = old.KfId
+	}
+
+	if new.KfName == "" {
+		new.KfName = old.KfName
+	}
+
+	if new.Prompt == "" {
+		new.Prompt = old.Prompt
+	}
+
+	if new.PostModel == "" {
+		new.PostModel = old.PostModel
+	}
+
+	if new.EmbeddingMode == "" {
+		new.EmbeddingMode = old.EmbeddingMode
+	}
+
+	if !new.Score.Valid {
+		new.Score = old.Score
+	}
+	return
 }

@@ -32,4 +32,105 @@ type (
         List []ListPromptReplyData `json:"list"`
     }
 
+    GetApplicationConfigListRequest struct {
+        Page     int    `json:"page"`         // 页码
+        PageSize int    `json:"page_size"` // 每页大小
+        StartCreatedAt string `json:"start_created_at,omitempty"`
+        EndCreatedAt   string `json:"end_created_at,omitempty"`
+        AgentName  string `json:"agent_name,omitempty"`
+        Model  string `json:"model,omitempty"`
+    }
+
+    FindApplicationConfigRequest struct {
+        Id  int64 `json:"id"`
+    }
+
+    IdsRequest struct {
+        Ids  []int64 `json:"id"`
+    }
+
+    // ApplicationConfig 结构体
+    ApplicationConfig struct {
+        Id  int64 `json:"id,omitempty"`
+        AgentId  int `json:"agent_id,omitempty"`
+        AgentSecret  string `json:"agent_secret,omitempty"`
+        AgentName  string `json:"agent_name,omitempty"`
+        Model  string `json:"model,omitempty"`
+        PostModel  string `json:"post_model,omitempty"`
+        BasePrompt  string `json:"base_prompt,omitempty"`
+        Welcome  string `json:"welcome,omitempty"`
+        GroupEnable  bool `json:"group_enable,omitempty"`
+        EmbeddingEnable  bool `json:"embedding_enable,omitempty"`
+        EmbeddingMode  string `json:"embedding_mode,omitempty"`
+        Score  float64 `json:"score,omitempty"`
+        TopK  int `json:"top_k,omitempty"`
+        ClearContextTime  int `json:"clear_context_time,omitempty"`
+        GroupName  string `json:"group_name,omitempty"`
+        GroupChatId  string `json:"group_chat_id,omitempty"`
+    }
+
+
+
+    GetCustomerConfigListRequest struct {
+        Page     int    `json:"page"`         // 页码
+        PageSize int    `json:"page_size"` // 每页大小
+        StartCreatedAt string `json:"start_created_at,omitempty"`
+        EndCreatedAt   string `json:"end_created_at,omitempty"`
+        CustomerName  string `json:"customer_name,omitempty"`
+        Model  string `json:"model,omitempty"`
+    }
+
+    FindCustomerConfigRequest struct {
+        Id  int64 `json:"id"`
+    }
+
+
+    // CustomerConfig 结构体
+    CustomerConfig struct {
+        Id               int64           `json:"id,omitempty,omitempty"`
+        KfId             string          `json:"kf_id,omitempty"` // 客服ID
+        KfName           string          `json:"kf_name,omitempty"`
+        Prompt           string          `json:"prompt,omitempty"`
+        PostModel        string          `json:"post_model,omitempty"`         // 发送请求的model
+        EmbeddingEnable  bool            `json:"embedding_enable,omitempty"`   // 是否启用embedding
+        EmbeddingMode    string          `json:"embedding_mode,omitempty"`     // embedding的搜索模式
+        Score            float64 `json:"score,omitempty"`              // 分数
+        TopK             int64           `json:"top_k,omitempty"`              // topK
+        ClearContextTime int64           `json:"clear_context_time,omitempty"` // 需要清理上下文的时间，按分配置，默认0不清理
+        CreatedAt        string       `json:"created_at,omitempty"`         // 创建时间
+        UpdatedAt        string       `json:"updated_at,omitempty"`         // 更新时间
+
+    }
+
+    GetChatListRequest struct {
+        Page     int    `json:"page"`         // 页码
+        PageSize int    `json:"page_size"` // 每页大小
+        StartCreatedAt string `json:"start_created_at,omitempty"`
+        EndCreatedAt   string `json:"end_created_at,omitempty"`
+        AgentId  string `json:"agent_id,omitempty"`
+        User  string `json:"user,omitempty"`
+        OpenKfId  string `json:"open_kf_id,omitempty"`
+    }
+
+
+
+    GetChatListPageResult struct {
+        List     []ChatResponse `json:"list"`
+        Total    int64       `json:"total"`
+        Page     int         `json:"page"`
+        PageSize int         `json:"pageSize"`
+    }
+    
+    ChatResponse struct {
+        Id         int64  `json:"id"`
+        User       string `json:"user"`        // weCom用户标识/customer用户标识
+        MessageId  string `json:"message_id"`  // message_id customer消息唯一ID
+        OpenKfId   string `json:"open_kf_id"`  // 客服标识
+        AgentId    string `json:"agent_id"`    // 应用ID
+        ReqContent string `json:"req_content"` // 用户发送内容
+        ResContent string `json:"res_content"` // openai响应内容
+        CreatedAt  string `json:"created_at"`  // 创建时间
+        UpdatedAt  string `json:"updated_at"`  // 更新时间
+    }
+
 )

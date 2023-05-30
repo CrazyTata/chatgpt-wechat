@@ -6,6 +6,7 @@ import (
 	"doc/uploadfile.api"
 	"doc/config.api"
 	"doc/tool.api"
+	"doc/common.api"
 )
 
 info(
@@ -45,6 +46,45 @@ service chat-api {
 	
 	@handler SyncWechatUserHandler
 	get /tool/sync-wechat-user (SyncWechatUserReq) returns (SyncWechatUserReply)
+	
+	@handler FindApplicationConfigHandler
+	post /config/find-get-application-config (FindApplicationConfigRequest) returns (ApplicationConfig)
+	
+	@handler GetApplicationConfigHandler
+	post /config/get-application-config (GetApplicationConfigListRequest) returns (PageResult)
+	
+	@handler CreateApplicationConfigHandler
+	post /config/create-application-config (ApplicationConfig) returns (Response)
+	
+	@handler UpdateApplicationConfigHandler
+	post /config/update-application-config (ApplicationConfig) returns (Response)
+	
+	@handler DeleteApplicationConfigHandler
+	post /config/delete-application-config (FindApplicationConfigRequest) returns (Response)
+	
+	@handler DeleteApplicationConfigByIdsHandler
+	post /config/delete-application-config-by-ids (IdsRequest) returns (Response)
+	
+	@handler FindCustomerConfigHandler
+	post /config/find-get-customer-config (FindCustomerConfigRequest) returns (CustomerConfig)
+	
+	@handler GetCustomerConfigHandler
+	post /config/get-customer-config (GetCustomerConfigListRequest) returns (PageResult)
+	
+	@handler CreateCustomerConfigHandler
+	post /config/create-customer-config (CustomerConfig) returns (Response)
+	
+	@handler UpdateCustomerConfigHandler
+	post /config/update-customer-config (CustomerConfig) returns (Response)
+	
+	@handler DeleteCustomerConfigHandler
+	post /config/delete-customer-config (FindCustomerConfigRequest) returns (Response)
+	
+	@handler DeleteCustomerConfigByIdsHandler
+	post /config/delete-customer-config-by-ids (IdsRequest) returns (Response)
+	
+	@handler GetChatListHandler
+	post /msg/get-chat (GetChatListRequest) returns (GetChatListPageResult)
 	
 }
 

@@ -7,7 +7,7 @@ aliyun-oss:
   base-path: yourBasePath
 autocode:
   transfer-restart: true
-  root: /Users/wangmogang/Downloads/project/tata/www/golang/src/chatgpt-wechat/gin-vue-admin
+  root: /Users/wangmogang/Downloads/project/tata/www/golang/src/chatgpt-wechat
   server: /server
   server-api: /api/v1/%s
   server-plug: /plugin/%s
@@ -85,7 +85,7 @@ hua-wei-obs:
   access-key: you-access-key
   secret-key: you-secret-key
 jwt:
-  signing-key: 3b7fe8e1-2dfc-43d1-9740-6ce8ac558b91
+  signing-key: b32cade5-e29d-4e16-92c9-7332b1ee3a0b
   expires-time: 7d
   buffer-time: 1d
   issuer: qmPlus
@@ -107,10 +107,10 @@ mssql:
   log-mode: ""
   log-zap: false
 mysql:
-  path: mysql57
-  port: "3306"
+  path: 127.0.0.1
+  port: "43306"
   config: charset=utf8mb4&parseTime=True&loc=Local
-  db-name: gva
+  db-name: admin
   username: root
   password: "123456"
   prefix: ""

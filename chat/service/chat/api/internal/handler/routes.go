@@ -54,6 +54,71 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Path:    "/tool/sync-wechat-user",
 					Handler: SyncWechatUserHandler(serverCtx),
 				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/find-get-application-config",
+					Handler: FindApplicationConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/get-application-config",
+					Handler: GetApplicationConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/create-application-config",
+					Handler: CreateApplicationConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/update-application-config",
+					Handler: UpdateApplicationConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/delete-application-config",
+					Handler: DeleteApplicationConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/delete-application-config-by-ids",
+					Handler: DeleteApplicationConfigByIdsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/find-get-customer-config",
+					Handler: FindCustomerConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/get-customer-config",
+					Handler: GetCustomerConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/create-customer-config",
+					Handler: CreateCustomerConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/update-customer-config",
+					Handler: UpdateCustomerConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/delete-customer-config",
+					Handler: DeleteCustomerConfigHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/config/delete-customer-config-by-ids",
+					Handler: DeleteCustomerConfigByIdsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/msg/get-chat",
+					Handler: GetChatListHandler(serverCtx),
+				},
 			}...,
 		),
 		rest.WithPrefix("/api"),

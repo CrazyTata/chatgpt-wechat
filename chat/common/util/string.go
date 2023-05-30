@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/csv"
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/bwmarrin/snowflake"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"io"
@@ -89,4 +90,18 @@ func GetLocalIP() (ipv4, ipv6 net.IP, err error) {
 	}
 
 	return ipv4, ipv6, nil
+}
+
+func GenerateSnowflakeInt64() int64 {
+	snow, _ := GenerateSnowflake()
+
+	return snow.Int64()
+}
+
+func GenerateSnowflake() (snowflake.ID, error) {
+	node, errNode := snowflake.NewNode(1)
+	if errNode != nil {
+		return 0, errNode
+	}
+	return node.Generate(), nil
 }

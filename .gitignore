@@ -35,3 +35,4 @@ build/minio
 build/mysql/data
 build/redis/data
 bin
+log
