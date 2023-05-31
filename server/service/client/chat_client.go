@@ -17,9 +17,9 @@ func (c *ChatConfigService) GetChatInfoList(info chatAdminReq.ChatSearch) (list 
 	param := GetChatListRequest{
 		Page:           info.Page,
 		PageSize:       info.PageSize,
-		AgentId:        info.AgentId,
+		Agent:          info.AgentId,
 		User:           info.User,
-		OpenKfId:       info.OpenKfId,
+		Customer:       info.OpenKfId,
 		StartCreatedAt: "",
 		EndCreatedAt:   "",
 	}

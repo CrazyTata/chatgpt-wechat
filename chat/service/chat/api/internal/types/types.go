@@ -191,9 +191,9 @@ type GetChatListRequest struct {
 	PageSize       int    `json:"page_size"` // 每页大小
 	StartCreatedAt string `json:"start_created_at,omitempty"`
 	EndCreatedAt   string `json:"end_created_at,omitempty"`
-	AgentId        string `json:"agent_id,omitempty"`
+	Agent          string `json:"agent,omitempty"`
 	User           string `json:"user,omitempty"`
-	OpenKfId       string `json:"open_kf_id,omitempty"`
+	Customer       string `json:"customer,omitempty"`
 }
 
 type GetChatListPageResult struct {

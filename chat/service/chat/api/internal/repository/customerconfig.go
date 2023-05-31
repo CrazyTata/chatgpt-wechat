@@ -87,3 +87,17 @@ func (l *CustomerConfigRepository) Update(id int64, CustomerConfigPo *model.Cust
 	l.svcCtx.CustomerConfigModel.BuildFiled(old, CustomerConfigPo)
 	return l.svcCtx.CustomerConfigModel.Update(context.Background(), CustomerConfigPo)
 }
+
+func (l *CustomerConfigRepository) GetByName(kfName string) (customerPo *model.CustomerConfig, err error) {
+
+	customerPo, err = l.svcCtx.CustomerConfigModel.FindOneByQuery(context.Background(),
+		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_name": kfName}),
+	)
+	return
+}
+
+func (l *CustomerConfigRepository) GetByKfIds(kfId []string) (CustomerConfigPo []*model.CustomerConfig, err error) {
+	return l.svcCtx.CustomerConfigModel.FindAll(context.Background(),
+		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": kfId}),
+	)
+}

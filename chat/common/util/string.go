@@ -105,3 +105,14 @@ func GenerateSnowflake() (snowflake.ID, error) {
 	}
 	return node.Generate(), nil
 }
+func Unique[T comparable](s []T) []T {
+	m := make(map[T]bool)
+	uniq := make([]T, 0)
+	for _, v := range s {
+		if _, ok := m[v]; !ok {
+			m[v] = true
+			uniq = append(uniq, v)
+		}
+	}
+	return uniq
+}
