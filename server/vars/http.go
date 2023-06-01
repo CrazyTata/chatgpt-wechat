@@ -1,7 +1,7 @@
 package vars
 
 const (
-	ChatHost = "http://localhost:8888"
+	ChatHost = "http://chat:8888"
 
 	ChatGetCustomerConfigUri         = "/api/config/get-customer-config"
 	ChatFindCustomerConfigUri        = "/api/config/find-get-customer-config"

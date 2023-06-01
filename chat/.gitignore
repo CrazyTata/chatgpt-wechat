@@ -23,6 +23,7 @@ go.work
 
 .idea
 chat-api.yaml
+chat-api-dev.yaml
 build
 temp-files
 logs

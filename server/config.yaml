@@ -158,7 +158,7 @@ qiniu:
   use-cdn-domains: false
 redis:
   db: 0
-  addr: redis7:6379
+  addr: localhost:46379
   password: ""
 system:
   env: dev

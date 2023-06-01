@@ -163,6 +163,8 @@ services:
     restart: always
     ports:
       - '8886:8886'
+    volumes:
+      - ./logs/server:/var/log/gva-server
     depends_on:
       - mysql
       - redis
