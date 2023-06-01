@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/chatAdmin"
 	chatAdminReq "github.com/flipped-aurora/gin-vue-admin/server/model/chatAdmin/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/service/client/clientStruct"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/vars"
 	"time"
@@ -14,7 +15,7 @@ type ChatService struct {
 }
 
 func (c *ChatConfigService) GetChatInfoList(info chatAdminReq.ChatSearch) (list []chatAdmin.Chat, total int64, err error) {
-	param := GetChatListRequest{
+	param := clientStruct.GetChatListRequest{
 		Page:           info.Page,
 		PageSize:       info.PageSize,
 		Agent:          info.AgentId,
@@ -38,17 +39,17 @@ func (c *ChatConfigService) GetChatInfoList(info chatAdminReq.ChatSearch) (list 
 		utils.Info("GetChatInfoList utils.Post error " + err.Error())
 		return
 	}
-	var resultInfo ChatPageResult
+	var resultInfo clientStruct.ChatPageResult
 	err = json.Unmarshal(result, &resultInfo)
 	if err != nil {
 		utils.Info("GetChatInfoList json.Unmarshal error " + err.Error())
 		return
 	}
 	if resultInfo.List != nil && len(resultInfo.List) > 0 {
-		layout := "2006-01-02 15:04:05"
+
 		for _, v := range resultInfo.List {
-			createdAt, _ := time.Parse(layout, v.CreatedAt)
-			updatedAt, _ := time.Parse(layout, v.UpdatedAt)
+			createdAt, _ := time.Parse(vars.TimeFormat, v.CreatedAt)
+			updatedAt, _ := time.Parse(vars.TimeFormat, v.UpdatedAt)
 
 			list = append(list, chatAdmin.Chat{
 				GVA_MODEL: global.GVA_MODEL{

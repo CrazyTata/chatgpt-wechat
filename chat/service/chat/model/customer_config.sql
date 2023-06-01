@@ -2,7 +2,7 @@
 create table if not exists customer_config
 (
     id          bigint unsigned auto_increment ,
-    kf_id    varchar(128)                  not null comment '客服ID',
+    kf_id    varchar(128) default  ''  not null comment '客服ID',
     kf_name varchar(50)  default '' null,
     prompt  varchar(1000) default '' null,
     post_model  varchar(128)   default  ''                      not null comment '发送请求的model',
@@ -13,6 +13,7 @@ create table if not exists customer_config
     clear_context_time int DEFAULT 0  not null comment '需要清理上下文的时间，按分配置，默认0不清理',
     created_at  timestamp       default CURRENT_TIMESTAMP null comment '创建时间',
     updated_at  timestamp       default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP comment '更新时间',
+    is_deleted tinyint default 0 not null comment '是否删除',
     PRIMARY KEY (`id`),
     KEY           `idx_open_kf_id` (`kf_id`) USING BTREE
     ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

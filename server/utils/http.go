@@ -26,7 +26,7 @@ func Post(url string, params []byte, headerData map[string]string) ([]byte, erro
 
 	resp, err := client.Do(req)
 	if err != nil {
-		Info(" url:" + url + " client.Do err:" + err.Error())
+		Info(" url:" + url + " params: " + string(params) + " client.Do err:" + err.Error())
 
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func Post(url string, params []byte, headerData map[string]string) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	Info(" url:" + url + " response:" + string(body))
+	Info(" url:" + url + " params: " + string(params) + " response:" + string(body))
 
 	return body, nil
 }

@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"chat/service/chat/api/internal/logic/assembler"
 	"chat/service/chat/api/internal/repository"
 	"context"
 	"fmt"
@@ -41,8 +42,9 @@ func (l *GetApplicationConfigLogic) GetApplicationConfig(req *types.GetApplicati
 			PageSize: 0,
 		}, nil
 	}
+	applicationConfigDto := assembler.POTODTOGetApplicationList(applicationConfigPos)
 	return &types.PageResult{
-		List:     applicationConfigPos,
+		List:     applicationConfigDto,
 		Total:    count,
 		Page:     req.Page,
 		PageSize: req.PageSize,

@@ -55,7 +55,7 @@ func (m *defaultApplicationConfigModel) FindOneByQuery(ctx context.Context, rowB
 
 // export logic
 func (m *defaultApplicationConfigModel) RowBuilder() squirrel.SelectBuilder {
-	return squirrel.Select(applicationConfigRows).From(m.table)
+	return squirrel.Select(applicationConfigRows).From(m.table).Where(squirrel.Eq{"is_deleted": 0})
 }
 
 func (m *defaultApplicationConfigModel) FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*ApplicationConfig, error) {
@@ -75,7 +75,7 @@ func (m *defaultApplicationConfigModel) FindAll(ctx context.Context, rowBuilder 
 	}
 }
 func (m *defaultApplicationConfigModel) CountBuilder(field string) squirrel.SelectBuilder {
-	return squirrel.Select("COUNT(" + field + ")").From(m.table)
+	return squirrel.Select("COUNT(" + field + ")").From(m.table).Where(squirrel.Eq{"is_deleted": 0})
 }
 
 func (m *defaultApplicationConfigModel) FindCount(ctx context.Context, countBuilder squirrel.SelectBuilder) (int64, error) {
@@ -104,59 +104,59 @@ func (m *defaultApplicationConfigModel) BuildFiled(old, new *ApplicationConfig) 
 		return
 	}
 	new.Id = old.Id
-	if new.AgentId == 0 {
-		new.AgentId = old.AgentId
-	}
-
-	if new.ClearContextTime == 0 {
-		new.ClearContextTime = old.ClearContextTime
-	}
-
-	if new.TopK == 0 {
-		new.TopK = old.TopK
-	}
-
-	new.GroupEnable = old.GroupEnable
-	new.EmbeddingEnable = old.EmbeddingEnable
-
-	if new.AgentSecret == "" {
-		new.AgentSecret = old.AgentSecret
-	}
-
-	if new.GroupChatId == "" {
-		new.GroupChatId = old.GroupChatId
-	}
-
-	if new.GroupName == "" {
-		new.GroupName = old.GroupName
-	}
-
-	if new.Welcome == "" {
-		new.Welcome = old.Welcome
-	}
-
-	if new.BasePrompt == "" {
-		new.BasePrompt = old.BasePrompt
-	}
-
-	if new.PostModel == "" {
-		new.PostModel = old.PostModel
-	}
-
-	if new.Model == "" {
-		new.Model = old.Model
-	}
-
-	if new.AgentName == "" {
-		new.AgentName = old.AgentName
-	}
-
-	if new.EmbeddingMode == "" {
-		new.EmbeddingMode = old.EmbeddingMode
-	}
-
-	if !new.Score.Valid {
-		new.Score = old.Score
-	}
+	//if new.AgentId == 0 {
+	//	new.AgentId = old.AgentId
+	//}
+	//
+	//if new.ClearContextTime == 0 {
+	//	new.ClearContextTime = old.ClearContextTime
+	//}
+	//
+	//if new.TopK == 0 {
+	//	new.TopK = old.TopK
+	//}
+	//
+	//new.GroupEnable = old.GroupEnable
+	//new.EmbeddingEnable = old.EmbeddingEnable
+	//
+	//if new.AgentSecret == "" {
+	//	new.AgentSecret = old.AgentSecret
+	//}
+	//
+	//if new.GroupChatId == "" {
+	//	new.GroupChatId = old.GroupChatId
+	//}
+	//
+	//if new.GroupName == "" {
+	//	new.GroupName = old.GroupName
+	//}
+	//
+	//if new.Welcome == "" {
+	//	new.Welcome = old.Welcome
+	//}
+	//
+	//if new.BasePrompt == "" {
+	//	new.BasePrompt = old.BasePrompt
+	//}
+	//
+	//if new.PostModel == "" {
+	//	new.PostModel = old.PostModel
+	//}
+	//
+	//if new.Model == "" {
+	//	new.Model = old.Model
+	//}
+	//
+	//if new.AgentName == "" {
+	//	new.AgentName = old.AgentName
+	//}
+	//
+	//if new.EmbeddingMode == "" {
+	//	new.EmbeddingMode = old.EmbeddingMode
+	//}
+	//
+	//if !new.Score.Valid {
+	//	new.Score = old.Score
+	//}
 	return
 }

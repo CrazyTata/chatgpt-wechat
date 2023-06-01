@@ -51,7 +51,7 @@ service chat-api {
 	post /config/find-get-application-config (FindApplicationConfigRequest) returns (ApplicationConfig)
 	
 	@handler GetApplicationConfigHandler
-	post /config/get-application-config (GetApplicationConfigListRequest) returns (PageResult)
+	post /config/get-application-config (GetApplicationConfigListRequest) returns (GetApplicationListPageResult)
 	
 	@handler CreateApplicationConfigHandler
 	post /config/create-application-config (ApplicationConfig) returns (Response)
@@ -69,7 +69,7 @@ service chat-api {
 	post /config/find-get-customer-config (FindCustomerConfigRequest) returns (CustomerConfig)
 	
 	@handler GetCustomerConfigHandler
-	post /config/get-customer-config (GetCustomerConfigListRequest) returns (PageResult)
+	post /config/get-customer-config (GetCustomerConfigListRequest) returns (GetCustomerListPageResult)
 	
 	@handler CreateCustomerConfigHandler
 	post /config/create-customer-config (CustomerConfig) returns (Response)

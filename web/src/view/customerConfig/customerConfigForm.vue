@@ -2,22 +2,19 @@
   <div>
     <div class="gva-form-box">
       <el-form :model="formData" ref="elFormRef" label-position="right" :rules="rule" label-width="80px">
-        <el-form-item label="客服ID:" prop="kfId">
-          <el-input v-model="formData.kfId" :clearable="true" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="kfName字段:" prop="kfName">
+        <el-form-item label="客服:" prop="kfName">
           <el-input v-model="formData.kfName" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="prompt字段:" prop="prompt">
+        <el-form-item label="prompt:" prop="prompt">
           <el-input v-model="formData.prompt" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="发送请求的model:" prop="postModel">
+        <el-form-item label="model:" prop="postModel">
           <el-input v-model="formData.postModel" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="是否启用embedding:" prop="embeddingEnable">
+        <el-form-item label="启用EM:" prop="embeddingEnable">
           <el-switch v-model="formData.embeddingEnable" active-color="#13ce66" inactive-color="#ff4949" active-text="是" inactive-text="否" clearable ></el-switch>
         </el-form-item>
-        <el-form-item label="embedding的搜索模式:" prop="embeddingMode">
+        <el-form-item label="搜索模式:" prop="embeddingMode">
           <el-input v-model="formData.embeddingMode" :clearable="true" placeholder="请输入" />
         </el-form-item>
         <el-form-item label="分数:" prop="score">
@@ -26,7 +23,7 @@
         <el-form-item label="topK:" prop="topK">
           <el-input v-model.number="formData.topK" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="需要清理上下文的时间，按分配置，默认0不清理:" prop="clearContextTime">
+        <el-form-item label="清理时间:" prop="clearContextTime">
           <el-input v-model.number="formData.clearContextTime" :clearable="true" placeholder="请输入" />
         </el-form-item>
         <el-form-item>

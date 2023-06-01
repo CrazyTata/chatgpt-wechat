@@ -4,7 +4,7 @@
       <el-col :span="12">
         <el-card>
           <template #header>
-            <el-divider>gin-vue-admin</el-divider>
+            <el-divider>chatgpt-wechat-Admin</el-divider>
           </template>
           <div>
             <el-row>
@@ -13,7 +13,7 @@
                   <img
                     class="org-img dom-center"
                     src="@/assets/logo.png"
-                    alt="gin-vue-admin"
+                    alt="chatgpt-admin"
                   >
                 </a>
               </el-col>

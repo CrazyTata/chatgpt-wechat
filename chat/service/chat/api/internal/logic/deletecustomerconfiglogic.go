@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"chat/service/chat/api/internal/repository"
 	"context"
 
 	"chat/service/chat/api/internal/svc"
@@ -11,20 +12,26 @@ import (
 
 type DeleteCustomerConfigLogic struct {
 	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
+	ctx                      context.Context
+	svcCtx                   *svc.ServiceContext
+	customerConfigRepository *repository.CustomerConfigRepository
 }
 
 func NewDeleteCustomerConfigLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteCustomerConfigLogic {
 	return &DeleteCustomerConfigLogic{
-		Logger: logx.WithContext(ctx),
-		ctx:    ctx,
-		svcCtx: svcCtx,
+		Logger:                   logx.WithContext(ctx),
+		ctx:                      ctx,
+		svcCtx:                   svcCtx,
+		customerConfigRepository: repository.NewCustomerConfigRepository(ctx, svcCtx),
 	}
 }
 
 func (l *DeleteCustomerConfigLogic) DeleteCustomerConfig(req *types.FindCustomerConfigRequest) (resp *types.Response, err error) {
-	// todo: add your logic here and delete this line
-
-	return
+	err = l.customerConfigRepository.Delete(req.Id)
+	if err != nil {
+		return
+	}
+	return &types.Response{
+		Message: "ok",
+	}, nil
 }

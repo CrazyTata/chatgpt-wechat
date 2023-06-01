@@ -2,34 +2,22 @@
   <div>
     <div class="gva-form-box">
       <el-form :model="formData" ref="elFormRef" label-position="right" :rules="rule" label-width="80px">
-        <el-form-item label="应用ID:" prop="agentId">
-          <el-input v-model.number="formData.agentId" :clearable="true" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="应用secret:" prop="agentSecret">
-          <el-input v-model="formData.agentSecret" :clearable="true" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="应用名:" prop="agentName">
+        <el-form-item label="应用:" prop="agentName">
           <el-input v-model="formData.agentName" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="model:" prop="model">
-          <el-input v-model="formData.model" :clearable="true" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item label="发送请求的model:" prop="postModel">
+        <el-form-item label="model:" prop="postModel">
           <el-input v-model="formData.postModel" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="openai 基础设定（可选）:" prop="basePrompt">
+        <el-form-item label="prompt:" prop="basePrompt">
           <el-input v-model="formData.basePrompt" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="进入应用时的欢迎语:" prop="welcome">
+        <el-form-item label="欢迎语:" prop="welcome">
           <el-input v-model="formData.welcome" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="是否启用ChatGPT应用内部交流群:" prop="groupEnable">
-          <el-switch v-model="formData.groupEnable" active-color="#13ce66" inactive-color="#ff4949" active-text="是" inactive-text="否" clearable ></el-switch>
-        </el-form-item>
-        <el-form-item label="是否启用embedding:" prop="embeddingEnable">
+        <el-form-item label="启用EM:" prop="embeddingEnable">
           <el-switch v-model="formData.embeddingEnable" active-color="#13ce66" inactive-color="#ff4949" active-text="是" inactive-text="否" clearable ></el-switch>
         </el-form-item>
-        <el-form-item label="embedding的搜索模式:" prop="embeddingMode">
+        <el-form-item label="搜索模式:" prop="embeddingMode">
           <el-input v-model="formData.embeddingMode" :clearable="true" placeholder="请输入" />
         </el-form-item>
         <el-form-item label="分数:" prop="score">
@@ -38,13 +26,16 @@
         <el-form-item label="topK:" prop="topK">
           <el-input v-model.number="formData.topK" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="需要清理上下文的时间，按分配置，默认0不清理:" prop="clearContextTime">
+        <el-form-item label="清理时间:" prop="clearContextTime">
           <el-input v-model.number="formData.clearContextTime" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="ChatGPT群名:" prop="groupName">
+        <el-form-item label="启用群:" prop="groupEnable">
+          <el-switch v-model="formData.groupEnable" active-color="#13ce66" inactive-color="#ff4949" active-text="是" inactive-text="否" clearable ></el-switch>
+        </el-form-item>
+        <el-form-item label="群名:" prop="groupName">
           <el-input v-model="formData.groupName" :clearable="true" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="ChatGPT应用内部交流群chat_id:" prop="groupChatId">
+        <el-form-item label="群chat_id:" prop="groupChatId">
           <el-input v-model="formData.groupChatId" :clearable="true" placeholder="请输入" />
         </el-form-item>
         <el-form-item>

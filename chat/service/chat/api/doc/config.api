@@ -67,6 +67,8 @@ type (
         ClearContextTime  int `json:"clear_context_time,omitempty"`
         GroupName  string `json:"group_name,omitempty"`
         GroupChatId  string `json:"group_chat_id,omitempty"`
+        CreatedAt        string       `json:"created_at,omitempty"`         // 创建时间
+        UpdatedAt        string       `json:"updated_at,omitempty"`         // 更新时间
     }
 
 
@@ -131,6 +133,20 @@ type (
         ResContent string `json:"res_content"` // openai响应内容
         CreatedAt  string `json:"created_at"`  // 创建时间
         UpdatedAt  string `json:"updated_at"`  // 更新时间
+    }
+
+    GetCustomerListPageResult struct {
+        List     []CustomerConfig `json:"list"`
+        Total    int64       `json:"total"`
+        Page     int         `json:"page"`
+        PageSize int         `json:"pageSize"`
+    }
+
+    GetApplicationListPageResult struct {
+        List     []ApplicationConfig `json:"list"`
+        Total    int64       `json:"total"`
+        Page     int         `json:"page"`
+        PageSize int         `json:"pageSize"`
     }
 
 )

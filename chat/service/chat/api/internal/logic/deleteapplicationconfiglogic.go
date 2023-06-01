@@ -25,11 +25,12 @@ func NewDeleteApplicationConfigLogic(ctx context.Context, svcCtx *svc.ServiceCon
 	}
 }
 
-// TODO 先不支持
 func (l *DeleteApplicationConfigLogic) DeleteApplicationConfig(req *types.FindApplicationConfigRequest) (resp *types.Response, err error) {
-
+	err = l.applicationConfigRepository.Delete(req.Id)
+	if err != nil {
+		return
+	}
 	return &types.Response{
 		Message: "ok",
 	}, nil
-	return
 }

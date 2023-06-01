@@ -51,6 +51,7 @@ type (
 		ClearContextTime int64           `db:"clear_context_time"` // 需要清理上下文的时间，按分配置，默认0不清理
 		CreatedAt        time.Time       `db:"created_at"`         // 创建时间
 		UpdatedAt        time.Time       `db:"updated_at"`         // 更新时间
+		IsDeleted        int64           `db:"is_deleted"`         // 是否删除
 	}
 )
 
@@ -64,7 +65,7 @@ func newCustomerConfigModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.
 func (m *defaultCustomerConfigModel) Delete(ctx context.Context, id int64) error {
 	customerConfigIdKey := fmt.Sprintf("%s%v", cacheCustomerConfigIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
+		query := fmt.Sprintf("update %s set is_deleted=1 where `id` = ?", m.table)
 		return conn.ExecCtx(ctx, query, id)
 	}, customerConfigIdKey)
 	return err
@@ -90,8 +91,8 @@ func (m *defaultCustomerConfigModel) FindOne(ctx context.Context, id int64) (*Cu
 func (m *defaultCustomerConfigModel) Insert(ctx context.Context, data *CustomerConfig) (sql.Result, error) {
 	customerConfigIdKey := fmt.Sprintf("%s%v", cacheCustomerConfigIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, customerConfigRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.PostModel, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, customerConfigRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.PostModel, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.IsDeleted)
 	}, customerConfigIdKey)
 	return ret, err
 }
@@ -100,7 +101,7 @@ func (m *defaultCustomerConfigModel) Update(ctx context.Context, data *CustomerC
 	customerConfigIdKey := fmt.Sprintf("%s%v", cacheCustomerConfigIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, customerConfigRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.PostModel, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.Id)
+		return conn.ExecCtx(ctx, query, data.KfId, data.KfName, data.Prompt, data.PostModel, data.EmbeddingEnable, data.EmbeddingMode, data.Score, data.TopK, data.ClearContextTime, data.IsDeleted, data.Id)
 	}, customerConfigIdKey)
 	return err
 }

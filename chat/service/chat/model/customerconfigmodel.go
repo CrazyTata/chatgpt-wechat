@@ -55,7 +55,7 @@ func (m *defaultCustomerConfigModel) FindOneByQuery(ctx context.Context, rowBuil
 
 // export logic
 func (m *defaultCustomerConfigModel) RowBuilder() squirrel.SelectBuilder {
-	return squirrel.Select(customerConfigRows).From(m.table)
+	return squirrel.Select(customerConfigRows).From(m.table).Where(squirrel.Eq{"is_deleted": 0})
 }
 
 func (m *defaultCustomerConfigModel) FindAll(ctx context.Context, rowBuilder squirrel.SelectBuilder) ([]*CustomerConfig, error) {
@@ -76,7 +76,7 @@ func (m *defaultCustomerConfigModel) FindAll(ctx context.Context, rowBuilder squ
 }
 
 func (m *defaultCustomerConfigModel) CountBuilder(field string) squirrel.SelectBuilder {
-	return squirrel.Select("COUNT(" + field + ")").From(m.table)
+	return squirrel.Select("COUNT(" + field + ")").From(m.table).Where(squirrel.Eq{"is_deleted": 0})
 }
 
 func (m *defaultCustomerConfigModel) FindCount(ctx context.Context, countBuilder squirrel.SelectBuilder) (int64, error) {
@@ -106,39 +106,39 @@ func (m *defaultCustomerConfigModel) BuildFiled(old, new *CustomerConfig) {
 		return
 	}
 	new.Id = old.Id
-
-	if new.ClearContextTime == 0 {
-		new.ClearContextTime = old.ClearContextTime
-	}
-
-	if new.TopK == 0 {
-		new.TopK = old.TopK
-	}
-
-	new.EmbeddingEnable = old.EmbeddingEnable
-
-	if new.KfId == "" {
-		new.KfId = old.KfId
-	}
-
-	if new.KfName == "" {
-		new.KfName = old.KfName
-	}
-
-	if new.Prompt == "" {
-		new.Prompt = old.Prompt
-	}
-
-	if new.PostModel == "" {
-		new.PostModel = old.PostModel
-	}
-
-	if new.EmbeddingMode == "" {
-		new.EmbeddingMode = old.EmbeddingMode
-	}
-
-	if !new.Score.Valid {
-		new.Score = old.Score
-	}
+	//
+	//if new.ClearContextTime == 0 {
+	//	new.ClearContextTime = old.ClearContextTime
+	//}
+	//
+	//if new.TopK == 0 {
+	//	new.TopK = old.TopK
+	//}
+	//
+	//if new.KfId == "" {
+	//	new.KfId = old.KfId
+	//}
+	//
+	//if new.KfName == "" {
+	//	new.KfName = old.KfName
+	//}
+	//
+	//if new.Prompt == "" {
+	//	new.Prompt = old.Prompt
+	//}
+	//
+	//if new.PostModel == "" {
+	//	new.PostModel = old.PostModel
+	//}
+	//
+	//if new.EmbeddingMode == "" {
+	//	new.EmbeddingMode = old.EmbeddingMode
+	//}
+	//
+	//if !new.Score.Valid {
+	//	new.Score = old.Score
+	//}
+	//
+	//
 	return
 }

@@ -79,7 +79,7 @@ export default ({
         targets: ['Android > 39', 'Chrome >= 60', 'Safari >= 10.1', 'iOS >= 10.3', 'Firefox >= 54', 'Edge >= 15'],
       }),
       vuePlugin(),
-      [Banner(`\n Build based on gin-vue-admin \n Time : ${timestamp}`)]
+      [Banner(`\n Build based on chatgpt-wechat-admin \n Time : ${timestamp}`)]
     ],
     css: {
       preprocessorOptions: {

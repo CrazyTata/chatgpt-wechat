@@ -101,3 +101,7 @@ func (l *CustomerConfigRepository) GetByKfIds(kfId []string) (CustomerConfigPo [
 		l.svcCtx.CustomerConfigModel.RowBuilder().Where(squirrel.Eq{"kf_id": kfId}),
 	)
 }
+
+func (l *CustomerConfigRepository) Delete(id int64) error {
+	return l.svcCtx.CustomerConfigModel.Delete(context.Background(), id)
+}

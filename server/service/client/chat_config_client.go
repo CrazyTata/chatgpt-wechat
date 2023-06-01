@@ -2,12 +2,11 @@ package client
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
-	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/chatAdmin"
 	chatAdminReq "github.com/flipped-aurora/gin-vue-admin/server/model/chatAdmin/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/service/client/assembler"
+	"github.com/flipped-aurora/gin-vue-admin/server/service/client/clientStruct"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/vars"
 )
@@ -16,33 +15,84 @@ type ChatConfigService struct {
 }
 
 func (c *ChatConfigService) CreateCustomerConfig(customerConfig *chatAdmin.CustomerConfig) (err error) {
+	param := assembler.DTOTOPOSaveCustomer(customerConfig)
 
-	return errors.New("此功能暂未开放")
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatSaveCustomerConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) DeleteCustomerConfig(customerConfig chatAdmin.CustomerConfig) (err error) {
-	return errors.New("此功能暂未开放")
+	param := assembler.DTOTOPODeleteCustomer(customerConfig)
 
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteCustomerConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) DeleteCustomerConfigByIds(ids request.IdsReq) (err error) {
-	return errors.New("此功能暂未开放")
+	param := assembler.DTOTOPODeleteCustomers(ids.Ids)
 
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteCustomerConfigByIdsUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) UpdateCustomerConfig(customerConfig chatAdmin.CustomerConfig) (err error) {
-	err = global.GVA_DB.Save(&customerConfig).Error
-	return err
+	param := assembler.DTOTOPOSaveCustomer(&customerConfig)
+
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatUpdateCustomerConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) GetCustomerConfig(id uint) (customerConfig chatAdmin.CustomerConfig, err error) {
-	return chatAdmin.CustomerConfig{}, errors.New("此功能暂未开放")
+	param := clientStruct.FindCustomerConfigRequest{
+		Id: int64(id),
+	}
 
+	jsonParam, _ := json.Marshal(param)
+
+	result, err := utils.Post(vars.ChatHost+vars.ChatFindCustomerConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	var resultInfo clientStruct.CustomerConfigResponse
+	err = json.Unmarshal(result, &resultInfo)
+	if err != nil {
+		return
+	}
+	if resultInfo.Id <= 0 {
+		return
+	}
+	customerConfig = assembler.POTODTOGetCustomer(resultInfo)
+	return
 }
 
 func (c *ChatConfigService) GetCustomerConfigInfoList(info chatAdminReq.CustomerConfigSearch) (list []chatAdmin.CustomerConfig, total int64, err error) {
 
-	param := GetCustomerConfigListRequest{
+	param := clientStruct.GetCustomerConfigListRequest{
 		Page:           info.Page,
 		PageSize:       info.PageSize,
 		CustomerName:   info.KfName,
@@ -62,63 +112,99 @@ func (c *ChatConfigService) GetCustomerConfigInfoList(info chatAdminReq.Customer
 	result, err := utils.Post(vars.ChatHost+vars.ChatGetCustomerConfigUri, jsonParam, nil)
 
 	if err != nil {
-		fmt.Print(err.Error())
 		return
 	}
-	var resultInfo CustomerPageResult
+	var resultInfo clientStruct.CustomerPageResult
 	err = json.Unmarshal(result, &resultInfo)
 	if err != nil {
-		fmt.Print(err.Error())
 		return
 	}
-	if resultInfo.List != nil && len(resultInfo.List) > 0 {
-		for _, v := range resultInfo.List {
-			var clearContextTime = int(v.ClearContextTime)
-			var topK = int(v.TopK)
-			var score float64
-			if v.Score.Valid {
-				score = v.Score.Float64
-			}
-			list = append(list, chatAdmin.CustomerConfig{
-				KfId:             v.KfId,
-				KfName:           v.KfName,
-				Prompt:           v.Prompt,
-				PostModel:        v.PostModel,
-				EmbeddingEnable:  &v.EmbeddingEnable,
-				EmbeddingMode:    v.EmbeddingMode,
-				Score:            &score,
-				TopK:             &topK,
-				ClearContextTime: &clearContextTime,
-			})
-		}
+	if resultInfo.List == nil || len(resultInfo.List) <= 0 {
+		return
 	}
-
+	list = assembler.POTODTOGetCustomerList(resultInfo.List)
 	total = resultInfo.Total
 	return
 }
 
 func (c *ChatConfigService) CreateApplicationConfig(applicationConfig *chatAdmin.ApplicationConfig) (err error) {
-	return errors.New("此功能暂未开放")
+	param := assembler.DTOTOPOSaveApplication(applicationConfig)
+
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatSaveApplicationConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) DeleteApplicationConfig(applicationConfig chatAdmin.ApplicationConfig) (err error) {
-	return errors.New("此功能暂未开放")
+	param := assembler.DTOTOPODeleteApplication(applicationConfig)
+
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteApplicationConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) DeleteApplicationConfigByIds(ids request.IdsReq) (err error) {
-	return errors.New("此功能暂未开放")
+	param := assembler.DTOTOPODeleteApplications(ids.Ids)
+
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteApplicationConfigByIdsUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) UpdateApplicationConfig(applicationConfig chatAdmin.ApplicationConfig) (err error) {
-	return errors.New("此功能暂未开放")
+	param := assembler.DTOTOPOSaveApplication(&applicationConfig)
+
+	jsonParam, _ := json.Marshal(param)
+
+	_, err = utils.Post(vars.ChatHost+vars.ChatUpdateApplicationConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *ChatConfigService) GetApplicationConfig(id uint) (applicationConfig chatAdmin.ApplicationConfig, err error) {
-	return chatAdmin.ApplicationConfig{}, errors.New("此功能暂未开放")
+	param := clientStruct.FindApplicationConfigRequest{
+		Id: int64(id),
+	}
+
+	jsonParam, _ := json.Marshal(param)
+
+	result, err := utils.Post(vars.ChatHost+vars.ChatFindApplicationConfigUri, jsonParam, nil)
+
+	if err != nil {
+		return
+	}
+	var resultInfo clientStruct.ApplicationConfigResponse
+	err = json.Unmarshal(result, &resultInfo)
+	if err != nil {
+		return
+	}
+	if resultInfo.Id <= 0 {
+		return
+	}
+	applicationConfig = assembler.POTODTOGetApplication(resultInfo)
+	return
 }
 
 func (c *ChatConfigService) GetApplicationConfigInfoList(info chatAdminReq.ApplicationConfigSearch) (list []chatAdmin.ApplicationConfig, total int64, err error) {
-	param := GetApplicationConfigListRequest{
+	param := clientStruct.GetApplicationConfigListRequest{
 		Page:           info.Page,
 		PageSize:       info.PageSize,
 		AgentName:      info.AgentName,
@@ -138,45 +224,17 @@ func (c *ChatConfigService) GetApplicationConfigInfoList(info chatAdminReq.Appli
 	result, err := utils.Post(vars.ChatHost+vars.ChatGetApplicationConfigUri, jsonParam, nil)
 
 	if err != nil {
-		fmt.Print(err.Error())
 		return
 	}
-	fmt.Println(string(result))
-	var resultInfo ApplicationPageResult
+	var resultInfo clientStruct.ApplicationPageResult
 	err = json.Unmarshal(result, &resultInfo)
 	if err != nil {
-		fmt.Print(err.Error())
 		return
 	}
-	if resultInfo.List != nil && len(resultInfo.List) > 0 {
-		for _, v := range resultInfo.List {
-			var clearContextTime = int(v.ClearContextTime)
-			var topK = int(v.TopK)
-			var agentId = int(v.AgentId)
-			var score float64
-			if v.Score.Valid {
-				score = v.Score.Float64
-			}
-			list = append(list, chatAdmin.ApplicationConfig{
-				AgentId:          &agentId,
-				AgentSecret:      v.AgentSecret,
-				AgentName:        v.AgentName,
-				Model:            v.Model,
-				PostModel:        v.PostModel,
-				BasePrompt:       v.BasePrompt,
-				Welcome:          v.Welcome,
-				GroupEnable:      &v.GroupEnable,
-				EmbeddingEnable:  &v.EmbeddingEnable,
-				EmbeddingMode:    v.EmbeddingMode,
-				Score:            &score,
-				TopK:             &topK,
-				ClearContextTime: &clearContextTime,
-				GroupName:        v.GroupName,
-				GroupChatId:      v.GroupChatId,
-			})
-		}
+	if resultInfo.List == nil || len(resultInfo.List) <= 0 {
+		return
 	}
-
+	list = assembler.POTODTOGetApplicationList(resultInfo.List)
 	total = resultInfo.Total
 	return
 }

@@ -1,4 +1,4 @@
-package client
+package clientStruct
 
 type GetChatListRequest struct {
 	Page           int    `json:"page"`      // 页码

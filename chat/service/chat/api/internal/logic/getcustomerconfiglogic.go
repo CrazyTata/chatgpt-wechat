@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"chat/service/chat/api/internal/logic/assembler"
 	"chat/service/chat/api/internal/repository"
 	"context"
 	"fmt"
@@ -41,8 +42,10 @@ func (l *GetCustomerConfigLogic) GetCustomerConfig(req *types.GetCustomerConfigL
 			PageSize: 0,
 		}, nil
 	}
+	customerConfigDto := assembler.POTODTOGetCustomerList(customerConfigPos)
+
 	return &types.PageResult{
-		List:     customerConfigPos,
+		List:     customerConfigDto,
 		Total:    count,
 		Page:     req.Page,
 		PageSize: req.PageSize,

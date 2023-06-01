@@ -3,8 +3,8 @@
  */
 
 const config = {
-  appName: 'Gin-Vue-Admin',
-  appLogo: 'https://www.gin-vue-admin.com/img/logo.png',
+  appName: 'chatgpt-admin',
+  appLogo: 'https://checklist.ashgso.com/Public/Css/Login/images/logo.png',
   showViteLogo: true
 }
 
