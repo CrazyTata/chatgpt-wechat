@@ -33,24 +33,6 @@
               </el-col>
             </el-row>
           </div>
-          <div>
-            <div class="gva-top-card-left-item">
-              使用教学：
-              <a
-                style="color:#409EFF"
-                target="view_window"
-                href="https://www.bilibili.com/video/BV1Rg411u7xH/"
-              >https://www.bilibili.com/video/BV1Rg411u7xH</a>
-            </div>
-            <div class="gva-top-card-left-item">
-              插件仓库：
-              <a
-                style="color:#409EFF"
-                target="view_window"
-                href="https://plugin.gin-vue-admin.com/#/layout/home"
-              >https://plugin.gin-vue-admin.com</a>
-            </div>
-          </div>
         </div>
         <img src="@/assets/dashboard.png" class="gva-top-card-right" alt>
       </div>
@@ -136,25 +118,18 @@ const toolCards = ref([
     bg: 'rgba(179, 127, 235,.3)'
   },
   {
-    label: '代码生成器',
+    label: '应用配置',
     icon: 'cpu',
-    name: 'autoCode',
+    name: 'applicationConfig',
     color: '#ffd666',
     bg: 'rgba(255, 214, 102,.3)'
   },
   {
-    label: '表单生成器',
+    label: '客服配置',
     icon: 'document-checked',
-    name: 'formCreate',
+    name: 'customerConfig',
     color: '#ff85c0',
     bg: 'rgba(255, 133, 192,.3)'
-  },
-  {
-    label: '关于我们',
-    icon: 'user',
-    name: 'about',
-    color: '#5cdbd3',
-    bg: 'rgba(92, 219, 211,.3)'
   }
 ])
 
