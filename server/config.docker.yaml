@@ -11,7 +11,7 @@ zap:
   level: info
   format: console
   prefix: "[github.com/flipped-aurora/gin-vue-admin/server]"
-  director: log
+  director: /var/log/gva-server/zap
   show-line: true
   encode-level: LowercaseColorLevelEncoder
   stacktrace-key: stacktrace
@@ -20,7 +20,7 @@ zap:
 # redis configuration
 redis:
   db: 0
-  addr: 177.7.0.14:6379
+  addr: redis7:6379
   password: ""
 
 # email configuration
@@ -39,7 +39,7 @@ system:
   addr: 8886
   db-type: mysql
   oss-type: local    # 控制oss选择走本地还是 七牛等其他仓 自行增加其他oss仓可以在 server/utils/upload/upload.go 中 NewOss函数配置
-  use-redis: false     # 使用redis
+  use-redis: true     # 使用redis
   use-multipoint: false
   # IP限制次数 一个小时15000次
   iplimit-count: 15000
@@ -48,7 +48,7 @@ system:
 
 # captcha configuration
 captcha:
-  key-long: 6
+  key-long: 4
   img-width: 240
   img-height: 80
   open-captcha: 0 # 0代表一直开启，大于0代表限制次数

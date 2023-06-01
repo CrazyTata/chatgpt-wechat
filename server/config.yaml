@@ -166,7 +166,7 @@ system:
   db-type: mysql
   oss-type: local
   use-multipoint: false
-  use-redis: false
+  use-redis: true
   iplimit-count: 15000
   iplimit-time: 3600
   router-prefix: ""
@@ -192,7 +192,7 @@ zap:
   level: debug
   prefix: '[github.com/flipped-aurora/gin-vue-admin/server]'
   format: console
-  director: log
+  director: /var/log/gva-server/zap
   encode-level: LowercaseColorLevelEncoder
   stacktrace-key: stacktrace
   max-age: 0
