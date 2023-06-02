@@ -16,9 +16,17 @@
 
         </el-form-item>
         <el-form-item label="应用">
-            
              <el-input v-model.number="searchInfo.agent_id" placeholder="搜索条件" />
-
+        </el-form-item>
+        <el-form-item label="客服类型">
+          <el-select v-model="searchInfo.chat_type" clearable placeholder="请选择">
+            <el-option
+              v-for="item in chatType"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" icon="search" @click="onSubmit">查询</el-button>
@@ -126,7 +134,15 @@ const total = ref(0)
 const pageSize = ref(10)
 const tableData = ref([])
 const searchInfo = ref({})
-
+const chatType = ref([
+  {
+    value: 1,
+    label: '机器人'
+  },{
+    value: 2,
+    label: '客服',
+  }
+])
 // 重置
 const onReset = () => {
   searchInfo.value = {}
@@ -167,7 +183,7 @@ const getTableData = async() => {
 }
 // 导出
 const exportData = async() => {
-  const table = await exportChatList({ ...searchInfo.value })
+  const table = await exportChatList({ page: page.value, pageSize: pageSize.value, ...searchInfo.value })
   if (table.code === 0) {
     const baseUrl = ""; // 修改为实际的服务器地址
     const fileUrl = `${baseUrl}${table.data.file}`; // 在下载地址前面加上服务器地址

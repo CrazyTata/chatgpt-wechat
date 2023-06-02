@@ -10,6 +10,6 @@ type ChatSearch struct {
 	chatAdmin.Chat
 	StartCreatedAt *time.Time `json:"startCreatedAt" form:"startCreatedAt"`
 	EndCreatedAt   *time.Time `json:"endCreatedAt" form:"endCreatedAt"`
-	ChatType       int32      `json:"chat_type"`
+	ChatType       int32      `json:"chat_type" form:"chat_type"`
 	request.PageInfo
 }

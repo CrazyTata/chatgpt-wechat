@@ -22,7 +22,7 @@ func NewChatRepository(ctx context.Context, svcCtx *svc.ServiceContext) *ChatRep
 	}
 }
 
-func (l *ChatRepository) GetAll(agentId int64, openKfId, user, startTime, endTime, order string, page, limit uint64) (chatPos []*model.Chat, count int64, err error) {
+func (l *ChatRepository) GetAll(agentId int64, openKfId, user, startTime, endTime, order string, page, limit uint64, chatType int32) (chatPos []*model.Chat, count int64, err error) {
 
 	countBuilder := l.svcCtx.ChatModel.CountBuilder("id")
 	rowBuilder := l.svcCtx.ChatModel.RowBuilder()
@@ -38,6 +38,16 @@ func (l *ChatRepository) GetAll(agentId int64, openKfId, user, startTime, endTim
 	if openKfId != "" {
 		countBuilder = countBuilder.Where(squirrel.Eq{"open_kf_id": openKfId})
 		rowBuilder = rowBuilder.Where(squirrel.Eq{"open_kf_id": openKfId})
+	}
+
+	if agentId == 0 && openKfId == "" {
+		if chatType == 1 {
+			countBuilder = countBuilder.Where("agent_id <> 0")
+			rowBuilder = rowBuilder.Where("agent_id <> 0")
+		} else if chatType == 2 {
+			countBuilder = countBuilder.Where("open_kf_id <> ''")
+			rowBuilder = rowBuilder.Where("open_kf_id <> ''")
+		}
 	}
 
 	if startTime != "" {

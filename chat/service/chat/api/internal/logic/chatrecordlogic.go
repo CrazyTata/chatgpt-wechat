@@ -267,7 +267,7 @@ func (l *ChatRecordLogic) GetChatList(req *types.GetChatListRequest) (resp *type
 		}
 		agentId = applicationPo.AgentId
 	}
-	if req.ChatType == 2 {
+	if req.ChatType == 2 && req.User != "" {
 		wechatUserPo, err := l.wechatUser.GetByName(req.User)
 		if nil != err {
 			return nil, err
@@ -299,7 +299,7 @@ func (l *ChatRecordLogic) GetChatList(req *types.GetChatListRequest) (resp *type
 		}
 		openKfId = applicationPo.KfId
 	}
-	chatPos, count, err := l.chatRepository.GetAll(agentId, openKfId, user, req.StartCreatedAt, req.EndCreatedAt, "id asc", uint64(req.Page), uint64(req.PageSize))
+	chatPos, count, err := l.chatRepository.GetAll(agentId, openKfId, user, req.StartCreatedAt, req.EndCreatedAt, "id asc", uint64(req.Page), uint64(req.PageSize), req.ChatType)
 	if err != nil {
 		fmt.Printf("GetSystemConfig error: %v", err)
 		return
