@@ -19,7 +19,7 @@ func (c *ChatConfigService) CreateCustomerConfig(customerConfig *chatAdmin.Custo
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatSaveCustomerConfigUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatSaveCustomerConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -32,7 +32,7 @@ func (c *ChatConfigService) DeleteCustomerConfig(customerConfig chatAdmin.Custom
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteCustomerConfigUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatDeleteCustomerConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -45,7 +45,7 @@ func (c *ChatConfigService) DeleteCustomerConfigByIds(ids request.IdsReq) (err e
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteCustomerConfigByIdsUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatDeleteCustomerConfigByIdsUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -58,7 +58,7 @@ func (c *ChatConfigService) UpdateCustomerConfig(customerConfig chatAdmin.Custom
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatUpdateCustomerConfigUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatUpdateCustomerConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -73,7 +73,7 @@ func (c *ChatConfigService) GetCustomerConfig(id uint) (customerConfig chatAdmin
 
 	jsonParam, _ := json.Marshal(param)
 
-	result, err := utils.Post(vars.ChatHost+vars.ChatFindCustomerConfigUri, jsonParam, nil)
+	result, err := utils.Post(utils.GetChatServerHost()+vars.ChatFindCustomerConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -109,7 +109,7 @@ func (c *ChatConfigService) GetCustomerConfigInfoList(info chatAdminReq.Customer
 
 	jsonParam, _ := json.Marshal(param)
 
-	result, err := utils.Post(vars.ChatHost+vars.ChatGetCustomerConfigUri, jsonParam, nil)
+	result, err := utils.Post(utils.GetChatServerHost()+vars.ChatGetCustomerConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -132,7 +132,7 @@ func (c *ChatConfigService) CreateApplicationConfig(applicationConfig *chatAdmin
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatSaveApplicationConfigUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatSaveApplicationConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -145,7 +145,7 @@ func (c *ChatConfigService) DeleteApplicationConfig(applicationConfig chatAdmin.
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteApplicationConfigUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatDeleteApplicationConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -158,7 +158,7 @@ func (c *ChatConfigService) DeleteApplicationConfigByIds(ids request.IdsReq) (er
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatDeleteApplicationConfigByIdsUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatDeleteApplicationConfigByIdsUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -171,7 +171,7 @@ func (c *ChatConfigService) UpdateApplicationConfig(applicationConfig chatAdmin.
 
 	jsonParam, _ := json.Marshal(param)
 
-	_, err = utils.Post(vars.ChatHost+vars.ChatUpdateApplicationConfigUri, jsonParam, nil)
+	_, err = utils.Post(utils.GetChatServerHost()+vars.ChatUpdateApplicationConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -186,7 +186,7 @@ func (c *ChatConfigService) GetApplicationConfig(id uint) (applicationConfig cha
 
 	jsonParam, _ := json.Marshal(param)
 
-	result, err := utils.Post(vars.ChatHost+vars.ChatFindApplicationConfigUri, jsonParam, nil)
+	result, err := utils.Post(utils.GetChatServerHost()+vars.ChatFindApplicationConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return
@@ -221,7 +221,7 @@ func (c *ChatConfigService) GetApplicationConfigInfoList(info chatAdminReq.Appli
 
 	jsonParam, _ := json.Marshal(param)
 
-	result, err := utils.Post(vars.ChatHost+vars.ChatGetApplicationConfigUri, jsonParam, nil)
+	result, err := utils.Post(utils.GetChatServerHost()+vars.ChatGetApplicationConfigUri, jsonParam, nil)
 
 	if err != nil {
 		return

@@ -1,0 +1,4 @@
+/*! 
+ Build based on chatgpt-wechat-admin 
+ Time : 1685686675000 */
+import s from"./index-7b0c1e0c.js";import{r as e,o,c as a,b as r,n as c,d as t,aK as i}from"./index-c0e4adfc.js";import{_ as n}from"./_plugin-vue_export-helper-1b428a4d.js";const l={class:"search-component"},u={class:"user-box"},d={class:"user-box"},p={name:"BtnBox"},v=n(Object.assign(p,{setup(n){const p=e(!1),v=()=>{p.value=!0,i.emit("reload"),setTimeout((()=>{p.value=!1}),500)},m=()=>{window.open("https://support.qq.com/product/371961")};return(e,i)=>(o(),a("div",l,[r("div",u,[r("div",{class:c(["gvaIcon gvaIcon-refresh",[p.value?"reloading":""]]),onClick:v},null,2)]),r("div",d,[t(s,{class:"search-icon",style:{cursor:"pointer"}})]),r("div",{class:"user-box"},[r("div",{class:"service gvaIcon-customer-service",onClick:m})])]))}}),[["__scopeId","data-v-4a45c246"]]);export{v as default};

@@ -24,6 +24,7 @@ go.work
 .idea
 chat-api.yaml
 chat-api-dev.yaml
+chat-api-docker.yaml
 build
 temp-files
 logs

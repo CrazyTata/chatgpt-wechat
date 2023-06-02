@@ -1,7 +1,9 @@
 package util
 
 import (
+	"crypto/md5"
 	"encoding/csv"
+	"encoding/hex"
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/bwmarrin/snowflake"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -96,6 +98,11 @@ func GenerateSnowflakeInt64() int64 {
 	snow, _ := GenerateSnowflake()
 
 	return snow.Int64()
+}
+
+func MD5(str string) string {
+	md5Data := md5.Sum([]byte(str))
+	return hex.EncodeToString(md5Data[:])
 }
 
 func GenerateSnowflake() (snowflake.ID, error) {

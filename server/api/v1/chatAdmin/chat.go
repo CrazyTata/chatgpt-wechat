@@ -39,3 +39,18 @@ func (chatApi *ChatApi) GetChatList(c *gin.Context) {
 		}, "获取成功", c)
 	}
 }
+
+func (chatApi *ChatApi) ExportChatList(c *gin.Context) {
+	var pageInfo chatAdminReq.ChatSearch
+	err := c.ShouldBindQuery(&pageInfo)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	if file, err := ChatConfigService.ExportChatInfoList(pageInfo); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		response.OkWithDetailed(response.ExportResult{File: file}, "获取成功", c)
+	}
+}

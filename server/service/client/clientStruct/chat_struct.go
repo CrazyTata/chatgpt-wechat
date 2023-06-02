@@ -8,6 +8,7 @@ type GetChatListRequest struct {
 	Agent          string `json:"agent"`
 	User           string `json:"user"`
 	Customer       string `json:"customer"`
+	ChatType       int32  `json:"chat_type"`
 }
 
 type ChatResponse struct {
@@ -27,4 +28,8 @@ type ChatPageResult struct {
 	Total    int64          `json:"total"`
 	Page     int            `json:"page"`
 	PageSize int            `json:"pageSize"`
+}
+
+type ChatExportResponse struct {
+	File string `json:"file"`
 }

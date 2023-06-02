@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/chatAdmin"
 	chatAdminReq "github.com/flipped-aurora/gin-vue-admin/server/model/chatAdmin/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/service/client/assembler"
 	"github.com/flipped-aurora/gin-vue-admin/server/service/client/clientStruct"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/vars"
@@ -15,25 +16,11 @@ type ChatService struct {
 }
 
 func (c *ChatConfigService) GetChatInfoList(info chatAdminReq.ChatSearch) (list []chatAdmin.Chat, total int64, err error) {
-	param := clientStruct.GetChatListRequest{
-		Page:           info.Page,
-		PageSize:       info.PageSize,
-		Agent:          info.AgentId,
-		User:           info.User,
-		Customer:       info.OpenKfId,
-		StartCreatedAt: "",
-		EndCreatedAt:   "",
-	}
-	if info.StartCreatedAt != nil {
-		param.StartCreatedAt = info.StartCreatedAt.String()
-	}
-	if info.EndCreatedAt != nil {
-		param.EndCreatedAt = info.EndCreatedAt.String()
-	}
+	param := assembler.DTOTOPOGetChat(info)
 
 	jsonParam, _ := json.Marshal(param)
 
-	result, err := utils.Post(vars.ChatHost+vars.ChatGetChatUri, jsonParam, nil)
+	result, err := utils.Post(utils.GetChatServerHost()+vars.ChatGetChatUri, jsonParam, nil)
 
 	if err != nil {
 		utils.Info("GetChatInfoList utils.Post error " + err.Error())
@@ -68,5 +55,26 @@ func (c *ChatConfigService) GetChatInfoList(info chatAdminReq.ChatSearch) (list 
 	}
 
 	total = resultInfo.Total
+	return
+}
+
+func (c *ChatConfigService) ExportChatInfoList(info chatAdminReq.ChatSearch) (file string, err error) {
+	param := assembler.DTOTOPOGetChat(info)
+
+	jsonParam, _ := json.Marshal(param)
+
+	result, err := utils.Post(utils.GetChatServerHost()+vars.ChatExportChatUri, jsonParam, nil)
+
+	if err != nil {
+		utils.Info("ExportChatInfoList utils.Post error " + err.Error())
+		return
+	}
+	var resultInfo clientStruct.ChatExportResponse
+	err = json.Unmarshal(result, &resultInfo)
+	if err != nil {
+		utils.Info("ExportChatInfoList json.Unmarshal error " + err.Error())
+		return
+	}
+	file = resultInfo.File
 	return
 }

@@ -2,14 +2,15 @@ package logic
 
 import (
 	"chat/common/redis"
+	"chat/common/util"
+	"chat/service/chat/api/internal/logic/assembler"
+	"chat/service/chat/api/internal/repository"
 	"chat/service/chat/api/internal/svc"
 	"chat/service/chat/api/internal/types"
 	"chat/service/chat/api/internal/vars"
 	"chat/service/chat/model"
 	"context"
-	"crypto/md5"
 	"encoding/csv"
-	"encoding/hex"
 	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -18,46 +19,55 @@ import (
 	"time"
 )
 
-const MaxExportNumber = 5000
+const MaxExportNumber = 3000
 
 type ChatRecordLogic struct {
 	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
+	ctx               context.Context
+	svcCtx            *svc.ServiceContext
+	chatRepository    *repository.ChatRepository
+	applicationConfig *repository.ApplicationConfigRepository
+	customerConfig    *repository.CustomerConfigRepository
+	wechatUser        *repository.WechatUserRepository
 }
 
 func NewChatRecordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ChatRecordLogic {
 	return &ChatRecordLogic{
-		Logger: logx.WithContext(ctx),
-		ctx:    ctx,
-		svcCtx: svcCtx,
+		Logger:            logx.WithContext(ctx),
+		ctx:               ctx,
+		svcCtx:            svcCtx,
+		applicationConfig: repository.NewApplicationConfigRepository(ctx, svcCtx),
+		customerConfig:    repository.NewCustomerConfigRepository(ctx, svcCtx),
+		chatRepository:    repository.NewChatRepository(ctx, svcCtx),
+		wechatUser:        repository.NewWechatUserRepository(ctx, svcCtx),
 	}
 }
 
-func (l *ChatRecordLogic) ChatHistoryExport(req *types.ChatHistoryExportReq) (resp *types.ChatHistoryExportReply, err error) {
-
-	userId, kfId, _, err := l.FormatCondition(req.UserNickname, req.KfName, req.ChatType)
-	if err != nil {
-		return
-	}
-	key := l.ChatHistoryExportKey(kfId, userId, req.ChatType)
+func (l *ChatRecordLogic) ChatHistoryExport(req *types.GetChatListRequest) (resp *types.ChatHistoryExportReply, err error) {
+	paramMD5 := util.MD5(req.Agent + req.User + req.Customer)
+	key := l.ChatHistoryExportKey(paramMD5)
 	fileUrl, err := redis.Rdb.Get(l.ctx, key).Result()
 	if err == nil {
 		return &types.ChatHistoryExportReply{File: fileUrl}, nil
 	}
-	chatPo, chatCount, err := l.GetCustomerInfo(req.UserNickname, req.KfName, req.StartTime, req.EndTime, "id asc", req.ChatType, MaxExportNumber)
-	if chatCount <= 0 {
+	req.Page = 1
+	req.PageSize = MaxExportNumber
+	list, err := l.GetChatList(req)
+	if err != nil {
+		fmt.Printf("GetSystemConfig error: %v", err)
+		return
+	}
+	if list == nil || list.Total <= 0 || len(list.List) <= 0 {
 		return nil, fmt.Errorf("没有要导出的数据")
 	}
-	if chatCount > MaxExportNumber {
+
+	if list.Total > MaxExportNumber {
 		return nil, fmt.Errorf("导出数据太多，请加入筛选条件")
 	}
 
 	dirName := l.GetDirName()
 	nowTime := time.Now().Format("150405")
-	str := userId + kfId + strconv.Itoa(int(req.ChatType))
-	hash := md5.Sum([]byte(str))
-	fileName := hex.EncodeToString(hash[:]) + nowTime + ".csv"
+	fileName := paramMD5 + nowTime + ".csv"
 	fullFilePath := dirName + fileName
 	fileHandle, err := os.Create(fullFilePath)
 	if err != nil {
@@ -77,16 +87,22 @@ func (l *ChatRecordLogic) ChatHistoryExport(req *types.ChatHistoryExportReq) (re
 
 	// 写入CSV行
 	i := 1
-	for _, chatSon := range chatPo {
+	for _, chatSon := range list.List {
 		//客户聊天
-		row1 := []string{strconv.Itoa(i), req.UserNickname, chatSon.ReqContent, chatSon.CreatedAt.Format("2006-01-02 15:04:05")}
+		row1 := []string{strconv.Itoa(i), chatSon.User, chatSon.ReqContent, chatSon.CreatedAt}
 		err = writer.Write(row1)
 		if err != nil {
 			return nil, err
 		}
 		i++
 		//客服聊天
-		row2 := []string{strconv.Itoa(i), req.KfName, chatSon.ResContent, chatSon.CreatedAt.Format("2006-01-02 15:04:05")}
+		var customer string
+		if chatSon.AgentId != "" {
+			customer = chatSon.AgentId
+		} else {
+			customer = chatSon.OpenKfId
+		}
+		row2 := []string{strconv.Itoa(i), customer, chatSon.ResContent, chatSon.CreatedAt}
 		err = writer.Write(row2)
 		if err != nil {
 			return nil, err
@@ -94,13 +110,13 @@ func (l *ChatRecordLogic) ChatHistoryExport(req *types.ChatHistoryExportReq) (re
 
 		i++
 	}
-	lastFile := l.svcCtx.Config.Ip + ":" + strconv.Itoa(l.svcCtx.Config.Port) + "/api/download/chat/history?file=" + fileName
+	lastFile := "http://" + l.svcCtx.Config.Ip + ":" + strconv.Itoa(l.svcCtx.Config.Port) + "/api/download/chat/history?file=" + fileName
 	redis.Rdb.Set(l.ctx, key, lastFile, 5*time.Minute)
 	return &types.ChatHistoryExportReply{File: lastFile}, nil
 }
 
-func (l *ChatRecordLogic) ChatHistoryExportKey(openKfID, userNickname string, chatType int32) string {
-	return fmt.Sprintf(redis.ChatHistoryExportKey, chatType, openKfID, userNickname)
+func (l *ChatRecordLogic) ChatHistoryExportKey(key string) string {
+	return fmt.Sprintf(redis.ChatHistoryExportKey, key)
 }
 
 func (l *ChatRecordLogic) GetDirName() string {
@@ -231,4 +247,112 @@ func (l *ChatRecordLogic) FormatCondition(userNickname, kfName string, chatType 
 
 	}
 	return
+}
+
+func (l *ChatRecordLogic) GetChatList(req *types.GetChatListRequest) (resp *types.GetChatListPageResult, err error) {
+	var agentId int64
+	var user, openKfId string
+	if req.Agent != "" {
+		applicationPo, err := l.applicationConfig.GetByName(req.Agent)
+		if nil != err {
+			return nil, err
+		}
+		if applicationPo == nil || applicationPo.AgentId == 0 {
+			return &types.GetChatListPageResult{
+				List:     nil,
+				Total:    0,
+				Page:     req.Page,
+				PageSize: req.PageSize,
+			}, nil
+		}
+		agentId = applicationPo.AgentId
+	}
+	if req.ChatType == 2 {
+		wechatUserPo, err := l.wechatUser.GetByName(req.User)
+		if nil != err {
+			return nil, err
+		}
+		if wechatUserPo == nil || wechatUserPo.User == "" {
+			return &types.GetChatListPageResult{
+				List:     nil,
+				Total:    0,
+				Page:     req.Page,
+				PageSize: req.PageSize,
+			}, nil
+		}
+		user = wechatUserPo.User
+	} else {
+		user = req.User
+	}
+	if req.Customer != "" {
+		applicationPo, err := l.customerConfig.GetByName(req.Customer)
+		if nil != err {
+			return nil, err
+		}
+		if applicationPo == nil || applicationPo.KfId == "" {
+			return &types.GetChatListPageResult{
+				List:     nil,
+				Total:    0,
+				Page:     req.Page,
+				PageSize: req.PageSize,
+			}, nil
+		}
+		openKfId = applicationPo.KfId
+	}
+	chatPos, count, err := l.chatRepository.GetAll(agentId, openKfId, user, req.StartCreatedAt, req.EndCreatedAt, "id asc", uint64(req.Page), uint64(req.PageSize))
+	if err != nil {
+		fmt.Printf("GetSystemConfig error: %v", err)
+		return
+	}
+
+	if count <= 0 || len(chatPos) <= 0 {
+		return &types.GetChatListPageResult{
+			List:     nil,
+			Total:    0,
+			Page:     req.Page,
+			PageSize: req.PageSize,
+		}, nil
+	}
+	var users, customers []string
+	var applications []int64
+	for _, v := range chatPos {
+		if v.AgentId == 0 {
+			customers = append(customers, v.OpenKfId)
+			users = append(users, v.User)
+		} else {
+			applications = append(applications, v.AgentId)
+		}
+	}
+	var wechatUserPos []*model.WechatUser
+	var customerPos []*model.CustomerConfig
+	var applicationPos []*model.ApplicationConfig
+	if len(users) > 0 {
+
+		wechatUserPos, err = l.wechatUser.GetByUsers(util.Unique(users))
+		if err != nil {
+			fmt.Printf("GetSystemConfig error: %v", err)
+			return
+		}
+	}
+	if len(customers) > 0 {
+		customerPos, err = l.customerConfig.GetByKfIds(util.Unique(customers))
+		if err != nil {
+			fmt.Printf("GetSystemConfig error: %v", err)
+			return
+		}
+	}
+	if len(applications) > 0 {
+		applicationPos, err = l.applicationConfig.GetByIds(util.Unique(applications))
+		if err != nil {
+			fmt.Printf("GetSystemConfig error: %v", err)
+			return
+		}
+	}
+	chatDtos := assembler.POTODTOGetChatList(chatPos, wechatUserPos, applicationPos, customerPos)
+	return &types.GetChatListPageResult{
+		List:     chatDtos,
+		Total:    count,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
 }

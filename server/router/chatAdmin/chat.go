@@ -13,6 +13,7 @@ func (s *ChatRouter) InitChatRouter(Router *gin.RouterGroup) {
 	chatRouterWithoutRecord := Router.Group("chat")
 	var chatApi = v1.ApiGroupApp.ChatAdminApiGroup.ChatApi
 	{
-		chatRouterWithoutRecord.GET("getChatList", chatApi.GetChatList) // 获取Chat列表
+		chatRouterWithoutRecord.GET("getChatList", chatApi.GetChatList)       // 获取Chat列表
+		chatRouterWithoutRecord.GET("exportChatList", chatApi.ExportChatList) // 导出Chat列表
 	}
 }

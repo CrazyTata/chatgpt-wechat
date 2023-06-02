@@ -45,6 +45,7 @@ system:
   iplimit-count: 15000
   #  IP限制一个小时
   iplimit-time: 3600
+  chat-server: "chat:8888"
 
 # captcha configuration
 captcha:

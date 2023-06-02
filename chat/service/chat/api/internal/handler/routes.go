@@ -119,6 +119,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Path:    "/msg/get-chat",
 					Handler: GetChatListHandler(serverCtx),
 				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/msg/export",
+					Handler: ChatExportHandler(serverCtx),
+				},
 			}...,
 		),
 		rest.WithPrefix("/api"),
@@ -137,11 +142,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodPost,
 					Path:    "/msg/customer/push",
 					Handler: CustomerChatHandler(serverCtx),
-				},
-				{
-					Method:  http.MethodPost,
-					Path:    "/msg/export",
-					Handler: ChatRecordHandler(serverCtx),
 				},
 				{
 					Method:  http.MethodPost,

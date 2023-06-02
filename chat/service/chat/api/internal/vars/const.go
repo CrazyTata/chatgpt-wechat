@@ -1,5 +1,5 @@
 package vars
 
 const (
-	ChatHistoryDirectory = "./temp-files/chat-history-export/"
+	ChatHistoryDirectory = "/var/log/chatgpt-wechat/file/chat-history-export/"
 )

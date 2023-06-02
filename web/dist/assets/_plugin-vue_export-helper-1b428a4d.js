@@ -1,4 +1,4 @@
 /*! 
- Build based on gin-vue-admin 
- Time : 1685443405000 */
+ Build based on chatgpt-wechat-admin 
+ Time : 1685686675000 */
 const o=(o,t)=>{const c=o.__vccOpts||o;for(const[s,n]of t)c[s]=n;return c};export{o as _};

@@ -95,3 +95,18 @@ export const getChatList = (params) => {
     params
   })
 }
+
+// @Tags Chat
+// @Summary 导出Chat列表
+// @accept application/json
+// @Produce application/json
+// @Param data query request.PageInfo true "分页获取Chat列表"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
+// @Router /chat/exportChatList [get]
+export const exportChatList = (params) => {
+  return service({
+    url: '/chat/exportChatList',
+    method: 'get',
+    params
+  })
+}

@@ -17,7 +17,7 @@ func GetChatListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := logic.NewGetChatListLogic(r.Context(), svcCtx)
+		l := logic.NewChatRecordLogic(r.Context(), svcCtx)
 		resp, err := l.GetChatList(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)

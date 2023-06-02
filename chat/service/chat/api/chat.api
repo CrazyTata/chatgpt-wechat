@@ -86,6 +86,9 @@ service chat-api {
 	@handler GetChatListHandler
 	post /msg/get-chat (GetChatListRequest) returns (GetChatListPageResult)
 	
+	@handler ChatExportHandler
+	post /msg/export (GetChatListRequest) returns (ChatHistoryExportReply)
+	
 }
 
 // 需要鉴权的服务
@@ -100,9 +103,6 @@ service chat-api {
 	
 	@handler CustomerChatHandler
 	post /msg/customer/push (CustomerChatReq) returns (CustomerChatReply)
-	
-	@handler ChatRecordHandler
-	post /msg/export (ChatHistoryExportReq) returns (ChatHistoryExportReply)
 	
 	@handler GetLastChatRecordHandler
 	post /msg/last-chat-info (GetLastChatInfoRequest) returns (GetLastChatInfoReply)

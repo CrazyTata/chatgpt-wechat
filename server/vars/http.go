@@ -1,8 +1,6 @@
 package vars
 
 const (
-	ChatHost = "http://chat:8888"
-
 	ChatGetCustomerConfigUri         = "/api/config/get-customer-config"
 	ChatFindCustomerConfigUri        = "/api/config/find-get-customer-config"
 	ChatUpdateCustomerConfigUri      = "/api/config/update-customer-config"
@@ -17,5 +15,7 @@ const (
 	ChatDeleteApplicationConfigUri      = "/api/config/delete-application-config"
 	ChatDeleteApplicationConfigByIdsUri = "/api/config/delete-application-config-by-ids"
 
-	ChatGetChatUri = "/api/msg/get-chat"
+	ChatGetChatUri      = "/api/msg/get-chat"
+	ChatExportChatUri   = "/api/msg/export"
+	ChatDownloadChatUri = "/api/download/chat/history"
 )

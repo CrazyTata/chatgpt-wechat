@@ -170,6 +170,7 @@ system:
   iplimit-count: 15000
   iplimit-time: 3600
   router-prefix: ""
+  chat-server: "localhost:8888"
 tencent-cos:
   bucket: xxxxx-10005608
   region: ap-shanghai

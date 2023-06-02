@@ -23,6 +23,7 @@
         <el-form-item>
           <el-button type="primary" icon="search" @click="onSubmit">查询</el-button>
           <el-button icon="refresh" @click="onReset">重置</el-button>
+          <el-button v-auth="btnAuth.chatExport" icon="download" @click="onExport">导出</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -92,14 +93,16 @@ import {
   deleteChatByIds,
   updateChat,
   findChat,
-  getChatList
+  getChatList,
+  exportChatList
 } from '@/api/chat'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive } from 'vue'
-
+import { useBtnAuth } from '@/utils/btnAuth'
+const btnAuth = useBtnAuth()
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({
         user: '',
@@ -136,7 +139,10 @@ const onSubmit = () => {
   pageSize.value = 10
   getTableData()
 }
-
+// 搜索
+const onExport = () => {
+  exportData()
+}
 // 分页
 const handleSizeChange = (val) => {
   pageSize.value = val
@@ -159,7 +165,22 @@ const getTableData = async() => {
     pageSize.value = table.data.pageSize
   }
 }
-
+// 导出
+const exportData = async() => {
+  const table = await exportChatList({ ...searchInfo.value })
+  if (table.code === 0) {
+    const baseUrl = ""; // 修改为实际的服务器地址
+    const fileUrl = `${baseUrl}${table.data.file}`; // 在下载地址前面加上服务器地址
+    const filename = fileUrl.substring(fileUrl.lastIndexOf("/") + 1); // 获取文件名
+    const elink = document.createElement('a'); // 创建a标签
+    elink.download = filename;
+    elink.style.display = 'none';
+    elink.href = fileUrl;
+    document.body.appendChild(elink);
+    elink.click();
+    document.body.removeChild(elink); //移除a标签
+  }
+}
 getTableData()
 
 // ============== 表格控制部分结束 ===============

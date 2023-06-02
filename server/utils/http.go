@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"io"
 	"net/http"
 	"strings"
@@ -79,4 +80,8 @@ func Get(url string) (string, error) {
 	rel, _ := io.ReadAll(response.Body)
 	Info(" url:" + url + " response:" + string(rel))
 	return string(rel), nil
+}
+
+func GetChatServerHost() string {
+	return "http://" + global.GVA_CONFIG.System.ChatServer
 }
